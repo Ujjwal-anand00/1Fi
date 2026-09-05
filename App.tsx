@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BottomNavigation } from './src/components/BottomNavigation';
+import { EmiDuesScreen } from './src/screens/EmiDuesScreen';
 import { PlaceholderScreen } from './src/screens/PlaceholderScreen';
 import { ShopScreen } from './src/screens/ShopScreen';
 
@@ -31,9 +32,7 @@ export default function App() {
             {() => <PlaceholderScreen title="Home" />}
           </Tab.Screen>
           <Tab.Screen name="Shop" component={ShopScreen} />
-          <Tab.Screen name="EMI Dues">
-            {() => <PlaceholderScreen title="EMI Dues" />}
-          </Tab.Screen>
+          <Tab.Screen name="EMI Dues" component={EmiDuesScreen} />
           <Tab.Screen name="Limit">
             {() => <PlaceholderScreen title="Limit" />}
           </Tab.Screen>

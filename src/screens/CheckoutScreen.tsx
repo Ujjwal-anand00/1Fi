@@ -41,7 +41,7 @@ export function CheckoutScreen({
   // Clearance for floating bottom navigation
   const bottomClearance = 74 + Math.max(insets.bottom, spacing.md) + spacing.lg;
 
-  // Mathematically accurate EMI calculation
+  // Single Source of Truth EMI calculation (same formula used in Product Details)
   const emiCalc = calculateEmiDetails(selectedVariant.price, selectedEmiPlan);
 
   const canPlaceOrder = Boolean(deliveryAddress && paymentMethod && termsAgreed && !isProcessing);
@@ -72,11 +72,12 @@ export function CheckoutScreen({
         productName: product.name,
         productImage: product.image,
         variant: `${selectedVariant.label}${selectedVariant.value ? ` • ${selectedVariant.value}` : ''}`,
-        color: selectedVariant.type.toLowerCase().includes('color') ? selectedVariant.label : selectedVariant.value,
+        color: selectedVariant.type.toLowerCase().includes('color') ? selectedVariant.label : undefined,
         storage: selectedVariant.type.toLowerCase().includes('storage') ? selectedVariant.label : undefined,
         quantity: 1,
+        productPrice: emiCalc.principal,
         productAmount: emiCalc.principal,
-        emiPlan: `${emiCalc.months} Months EMI`,
+        emiPlan: `${emiCalc.months} Months ${emiCalc.isNoCost ? 'No Cost ' : ''}EMI`,
         emiMonths: emiCalc.months,
         monthlyEmi: emiCalc.monthlyEmi,
         interestAmount: emiCalc.interestAmount,
@@ -132,7 +133,10 @@ export function CheckoutScreen({
               {selectedVariant.label}
               {selectedVariant.value ? ` • ${selectedVariant.value}` : ''}
             </Text>
-            <Text style={styles.productPrice}>{formatINR(selectedVariant.price)}</Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.quantityLabel}>Qty: 1</Text>
+              <Text style={styles.productPrice}>{formatINR(selectedVariant.price)}</Text>
+            </View>
           </View>
         </View>
 
@@ -140,7 +144,7 @@ export function CheckoutScreen({
         <View style={styles.emiHighlightRow}>
           <View style={styles.emiHighlightLeft}>
             <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-            <Text style={styles.emiPlanName}>{emiCalc.months} Months EMI</Text>
+            <Text style={styles.emiPlanName}>{emiCalc.months} Months {emiCalc.isNoCost ? 'No Cost ' : ''}EMI</Text>
           </View>
           <Text style={styles.emiMonthlyAmount}>
             {formatINR(emiCalc.monthlyEmi)} <Text style={styles.emiPerMonth}>/ mo</Text>
@@ -148,43 +152,16 @@ export function CheckoutScreen({
         </View>
       </View>
 
-      {/* 2. Delivery Address */}
-      <DeliveryAddressCard
-        address={deliveryAddress}
-        onUpdateAddress={(newAddr) => {
-          setDeliveryAddress(newAddr);
-          setValidationError(null);
-        }}
-      />
-
-      {/* 3. Payment Method */}
-      <PaymentMethodSelector
-        selectedMethod={paymentMethod}
-        onSelectMethod={(method) => {
-          setPaymentMethod(method);
-          setValidationError(null);
-        }}
-      />
-
-      {/* 4. EMI Terms & Conditions */}
-      <EmiTermsSection
-        agreed={termsAgreed}
-        onToggleAgreement={() => {
-          setTermsAgreed((prev) => !prev);
-          setValidationError(null);
-        }}
-      />
-
-      {/* 5. Final Payment Summary */}
+      {/* 2. Price Summary Card */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="receipt-outline" size={20} color={colors.primary} />
-          <Text style={styles.cardTitle}>Payment Breakdown</Text>
+          <Text style={styles.cardTitle}>Price Summary</Text>
         </View>
 
         <View style={styles.breakdownWrap}>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Product Amount</Text>
+            <Text style={styles.breakdownLabel}>Product Price</Text>
             <Text style={styles.breakdownValue}>{formatINR(emiCalc.principal)}</Text>
           </View>
 
@@ -219,6 +196,33 @@ export function CheckoutScreen({
         </View>
       </View>
 
+      {/* 3. Delivery Address Section */}
+      <DeliveryAddressCard
+        address={deliveryAddress}
+        onUpdateAddress={(newAddr) => {
+          setDeliveryAddress(newAddr);
+          setValidationError(null);
+        }}
+      />
+
+      {/* 4. Payment Method Section */}
+      <PaymentMethodSelector
+        selectedMethod={paymentMethod}
+        onSelectMethod={(method) => {
+          setPaymentMethod(method);
+          setValidationError(null);
+        }}
+      />
+
+      {/* 5. EMI Terms & Conditions */}
+      <EmiTermsSection
+        agreed={termsAgreed}
+        onToggleAgreement={() => {
+          setTermsAgreed((prev) => !prev);
+          setValidationError(null);
+        }}
+      />
+
       {/* Validation Error Message */}
       {validationError ? (
         <View style={styles.errorBanner}>
@@ -227,8 +231,23 @@ export function CheckoutScreen({
         </View>
       ) : null}
 
-      {/* Place Order CTA */}
+      {/* 6. Bottom Order Summary & CTA */}
       <View style={styles.ctaCard}>
+        <View style={styles.bottomSummaryRow}>
+          <View style={styles.bottomSummaryLeft}>
+            <Text style={styles.bottomTotalLabel}>Total Payable</Text>
+            <Text style={styles.bottomTotalValue}>{formatINR(emiCalc.totalPayable)}</Text>
+          </View>
+          <View style={styles.bottomSummaryRight}>
+            <Text style={styles.bottomEmiText}>
+              EMI: <Text style={styles.bottomEmiBold}>{formatINR(emiCalc.monthlyEmi)}</Text> × {emiCalc.months} months
+            </Text>
+            <Text style={styles.bottomFeeText}>
+              Processing Fee: {emiCalc.processingFee > 0 ? formatINR(emiCalc.processingFee) : '₹0 (FREE)'}
+            </Text>
+          </View>
+        </View>
+
         <Pressable
           style={[styles.placeOrderBtn, (!canPlaceOrder || isProcessing) && styles.btnDisabled]}
           onPress={handlePlaceOrder}
@@ -242,9 +261,7 @@ export function CheckoutScreen({
               <Text style={styles.placeOrderBtnText}>Processing your order...</Text>
             </>
           ) : (
-            <>
-              <Text style={styles.placeOrderBtnText}>Place Order →</Text>
-            </>
+            <Text style={styles.placeOrderBtnText}>Place Order →</Text>
           )}
         </Pressable>
       </View>
@@ -338,11 +355,21 @@ const styles = StyleSheet.create({
     fontSize: typography.small,
     fontWeight: '600',
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  quantityLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.small,
+    fontWeight: '600',
+  },
   productPrice: {
     color: colors.textPrimary,
     fontSize: typography.body,
     fontWeight: '800',
-    marginTop: 2,
   },
   emiHighlightRow: {
     flexDirection: 'row',
@@ -454,11 +481,50 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     backgroundColor: colors.surface,
     padding: spacing.lg,
+    gap: spacing.md,
     shadowColor: colors.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  bottomSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+  },
+  bottomSummaryLeft: {
+    gap: 2,
+  },
+  bottomTotalLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.small,
+    fontWeight: '600',
+  },
+  bottomTotalValue: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  bottomSummaryRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  bottomEmiText: {
+    color: colors.textPrimary,
+    fontSize: typography.secondary,
+    fontWeight: '600',
+  },
+  bottomEmiBold: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  bottomFeeText: {
+    color: colors.textSecondary,
+    fontSize: typography.small,
   },
   placeOrderBtn: {
     minHeight: 52,

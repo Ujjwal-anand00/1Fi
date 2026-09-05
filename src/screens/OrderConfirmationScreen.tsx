@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,16 +12,15 @@ import { formatINR } from '../utils/formatters';
 type OrderConfirmationScreenProps = {
   order: Order;
   onContinueShopping: () => void;
-  onViewOrderDetails?: (order: Order) => void;
+  onViewOrder: () => void;
 };
 
 export function OrderConfirmationScreen({
   order,
   onContinueShopping,
-  onViewOrderDetails,
+  onViewOrder,
 }: OrderConfirmationScreenProps) {
   const insets = useSafeAreaInsets();
-  const [showFullDetails, setShowFullDetails] = useState(false);
 
   // Clearance for floating bottom navigation
   const bottomClearance = 74 + Math.max(insets.bottom, spacing.md) + spacing.lg;
@@ -42,9 +40,11 @@ export function OrderConfirmationScreen({
     }
   };
 
+  const addressLine = order.deliveryAddress.addressLine1 || order.deliveryAddress.addressLine;
+
   return (
     <View style={styles.wrapper}>
-      {/* Success Hero Badge */}
+      {/* 1. Success Hero Badge */}
       <View style={styles.heroCard}>
         <View style={styles.checkCircle}>
           <Ionicons name="checkmark" size={36} color={colors.white} />
@@ -56,7 +56,7 @@ export function OrderConfirmationScreen({
         </Text>
       </View>
 
-      {/* Item Summary Card */}
+      {/* 2. Item Summary Card */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="bag-check-outline" size={20} color={colors.primary} />
@@ -77,7 +77,7 @@ export function OrderConfirmationScreen({
               {order.productName}
             </Text>
             <Text style={styles.variantBadge}>{order.variant}</Text>
-            <Text style={styles.productPrice}>{formatINR(order.productAmount)}</Text>
+            <Text style={styles.productPrice}>{formatINR(order.productPrice || order.productAmount)}</Text>
           </View>
         </View>
 
@@ -92,7 +92,7 @@ export function OrderConfirmationScreen({
         </View>
       </View>
 
-      {/* Delivery & Payment Details Card */}
+      {/* 3. Delivery & Payment Details Card */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="location-outline" size={20} color={colors.primary} />
@@ -104,7 +104,7 @@ export function OrderConfirmationScreen({
           <Text style={styles.infoValueBold}>{order.deliveryAddress.fullName}</Text>
         </View>
         <Text style={styles.addressLineText}>
-          {order.deliveryAddress.addressLine}, {order.deliveryAddress.city}, {order.deliveryAddress.state} - {order.deliveryAddress.pinCode}
+          {addressLine}{order.deliveryAddress.addressLine2 ? `, ${order.deliveryAddress.addressLine2}` : ''}, {order.deliveryAddress.city}, {order.deliveryAddress.state} - {order.deliveryAddress.pinCode}
         </Text>
         <Text style={styles.phoneText}>Mobile: +91 {order.deliveryAddress.mobileNumber}</Text>
 
@@ -116,7 +116,7 @@ export function OrderConfirmationScreen({
         </View>
       </View>
 
-      {/* Payment Summary */}
+      {/* 4. Payment Summary */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="receipt-outline" size={20} color={colors.primary} />
@@ -126,7 +126,7 @@ export function OrderConfirmationScreen({
         <View style={styles.breakdownWrap}>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Product Amount</Text>
-            <Text style={styles.breakdownValue}>{formatINR(order.productAmount)}</Text>
+            <Text style={styles.breakdownValue}>{formatINR(order.productPrice || order.productAmount)}</Text>
           </View>
 
           <View style={styles.breakdownRow}>
@@ -152,36 +152,15 @@ export function OrderConfirmationScreen({
         </View>
       </View>
 
-      {/* Expanded Order Inspector if "View Order" clicked */}
-      {showFullDetails ? (
-        <View style={styles.fullOrderCard}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Order Verification Details</Text>
-          </View>
-          <View style={styles.jsonWrap}>
-            <Text style={styles.specLine}>Status: <Text style={styles.bold}>{order.orderStatus}</Text></Text>
-            <Text style={styles.specLine}>Placed at: <Text style={styles.bold}>{new Date(order.createdAt).toLocaleString('en-IN')}</Text></Text>
-            <Text style={styles.specLine}>Mandate: <Text style={styles.bold}>{order.paymentMethod.toUpperCase()}</Text></Text>
-            <Text style={styles.specLine}>Schedule: <Text style={styles.bold}>{formatINR(order.monthlyEmi)} / month for {order.emiMonths} months</Text></Text>
-          </View>
-        </View>
-      ) : null}
-
       {/* Action Buttons */}
       <View style={styles.actionsCard}>
         <Pressable
           style={styles.primaryBtn}
-          onPress={() => {
-            setShowFullDetails((prev) => !prev);
-            onViewOrderDetails?.(order);
-          }}
+          onPress={onViewOrder}
           accessibilityRole="button"
           accessibilityLabel="View Order"
         >
-          <Text style={styles.primaryBtnText}>
-            {showFullDetails ? 'Hide Order Details' : 'View Order →'}
-          </Text>
+          <Text style={styles.primaryBtnText}>View Order →</Text>
         </Pressable>
 
         <Pressable
@@ -371,6 +350,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: typography.secondary,
     fontWeight: '600',
+    marginTop: 2,
   },
   divider: {
     height: 1,
@@ -413,25 +393,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
-  },
-  fullOrderCard: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: '#F9FAFB',
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  jsonWrap: {
-    gap: 4,
-  },
-  specLine: {
-    color: colors.textSecondary,
-    fontSize: typography.secondary,
-  },
-  bold: {
-    color: colors.textPrimary,
-    fontWeight: '700',
   },
   actionsCard: {
     gap: spacing.md,

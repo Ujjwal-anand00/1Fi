@@ -14,6 +14,7 @@ import type { EmiPlan, Product, ProductVariant } from '../types/marketplace';
 import type { Order } from '../types/order';
 import { CheckoutScreen } from './CheckoutScreen';
 import { OrderConfirmationScreen } from './OrderConfirmationScreen';
+import { OrderDetailsScreen } from './OrderDetailsScreen';
 import { ProductDetailsScreen } from './ProductDetailsScreen';
 
 type CheckoutData = {
@@ -31,6 +32,7 @@ export function MarketplaceScreen() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   // Floating bottom navigation clearance
   const bottomClearance = 74 + Math.max(insets.bottom, spacing.md) + spacing.lg;
@@ -44,11 +46,29 @@ export function MarketplaceScreen() {
     return products.filter((product) => product.name.toLowerCase().includes(query));
   }, [products, searchQuery]);
 
-  // 1. Order Confirmation Screen
+  // 1. Order Details Screen (View Order)
+  if (viewingOrder) {
+    return (
+      <OrderDetailsScreen
+        order={viewingOrder}
+        onBack={() => setViewingOrder(null)}
+        onContinueShopping={() => {
+          setViewingOrder(null);
+          setConfirmedOrder(null);
+          setCheckoutData(null);
+          setSelectedProductId(null);
+          setSearchQuery('');
+        }}
+      />
+    );
+  }
+
+  // 2. Order Confirmation Screen
   if (confirmedOrder) {
     return (
       <OrderConfirmationScreen
         order={confirmedOrder}
+        onViewOrder={() => setViewingOrder(confirmedOrder)}
         onContinueShopping={() => {
           setConfirmedOrder(null);
           setCheckoutData(null);

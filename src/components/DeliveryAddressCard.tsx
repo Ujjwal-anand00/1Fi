@@ -21,7 +21,8 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
     address ?? {
       fullName: '',
       mobileNumber: '',
-      addressLine: '',
+      addressLine1: '',
+      addressLine2: '',
       city: '',
       state: '',
       pinCode: '',
@@ -31,7 +32,11 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
 
   const handleOpenModal = () => {
     if (address) {
-      setForm(address);
+      setForm({
+        ...address,
+        addressLine1: address.addressLine1 || address.addressLine || '',
+        addressLine2: address.addressLine2 || '',
+      });
     }
     setErrors({});
     setModalVisible(true);
@@ -43,7 +48,7 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
     if (!form.fullName.trim()) {
       newErrors.fullName = 'Full name is required';
     } else if (form.fullName.trim().length < 2) {
-      newErrors.fullName = 'Please enter a valid name';
+      newErrors.fullName = 'Please enter a valid full name';
     }
 
     const cleanMobile = form.mobileNumber.replace(/\D/g, '');
@@ -53,10 +58,10 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
       newErrors.mobileNumber = 'Enter a valid 10-digit mobile number';
     }
 
-    if (!form.addressLine.trim()) {
-      newErrors.addressLine = 'Address line is required';
-    } else if (form.addressLine.trim().length < 5) {
-      newErrors.addressLine = 'Please enter complete address details';
+    if (!form.addressLine1.trim()) {
+      newErrors.addressLine1 = 'Address Line 1 is required';
+    } else if (form.addressLine1.trim().length < 3) {
+      newErrors.addressLine1 = 'Please enter street, building or house details';
     }
 
     if (!form.city.trim()) {
@@ -80,10 +85,20 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
 
   const handleSave = () => {
     if (validate()) {
-      onUpdateAddress(form);
+      const combinedLine = `${form.addressLine1.trim()}${
+        form.addressLine2?.trim() ? `, ${form.addressLine2.trim()}` : ''
+      }`;
+      onUpdateAddress({
+        ...form,
+        addressLine1: form.addressLine1.trim(),
+        addressLine2: form.addressLine2?.trim() || '',
+        addressLine: combinedLine,
+      });
       setModalVisible(false);
     }
   };
+
+  const displayStreet = address?.addressLine1 || address?.addressLine || '';
 
   return (
     <View style={styles.card}>
@@ -93,14 +108,16 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
           <Text style={styles.title}>Delivery Address</Text>
         </View>
 
-        <Pressable
-          onPress={handleOpenModal}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={address ? 'Change address' : 'Add delivery address'}
-        >
-          <Text style={styles.actionLink}>{address ? 'Change' : 'Add Address'}</Text>
-        </Pressable>
+        {address ? (
+          <Pressable
+            onPress={handleOpenModal}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Change delivery address"
+          >
+            <Text style={styles.actionLink}>Change</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {address ? (
@@ -112,16 +129,27 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
             </View>
           </View>
 
-          <Text style={styles.addressLine}>{address.addressLine}</Text>
+          <Text style={styles.addressLine}>{displayStreet}</Text>
+          {address.addressLine2 ? (
+            <Text style={styles.addressLine}>{address.addressLine2}</Text>
+          ) : null}
           <Text style={styles.cityStatePin}>
             {address.city}, {address.state} - {address.pinCode}
           </Text>
         </View>
       ) : (
-        <Pressable style={styles.emptyPrompt} onPress={handleOpenModal}>
-          <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
-          <Text style={styles.emptyPromptText}>Add a delivery address to proceed</Text>
-        </Pressable>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>Add Delivery Address</Text>
+          <Pressable
+            style={styles.emptyPrompt}
+            onPress={handleOpenModal}
+            accessibilityRole="button"
+            accessibilityLabel="Add New Address"
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.emptyPromptText}>+ Add New Address</Text>
+          </Pressable>
+        </View>
       )}
 
       {/* Address Form Modal */}
@@ -145,11 +173,11 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
             {/* Form Fields */}
             <View style={styles.formWrap}>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name</Text>
+                <Text style={styles.inputLabel}>Full Name *</Text>
                 <TextInput
                   value={form.fullName}
                   onChangeText={(val) => setForm((prev) => ({ ...prev, fullName: val }))}
-                  placeholder="e.g. Rahul Sharma"
+                  placeholder="e.g. Ujjwal Anand"
                   placeholderTextColor={colors.textTertiary}
                   style={[styles.input, errors.fullName && styles.inputError]}
                 />
@@ -157,7 +185,7 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mobile Number</Text>
+                <Text style={styles.inputLabel}>Mobile Number *</Text>
                 <TextInput
                   value={form.mobileNumber}
                   onChangeText={(val) => setForm((prev) => ({ ...prev, mobileNumber: val }))}
@@ -173,22 +201,33 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Address Line</Text>
+                <Text style={styles.inputLabel}>Address Line 1 *</Text>
                 <TextInput
-                  value={form.addressLine}
-                  onChangeText={(val) => setForm((prev) => ({ ...prev, addressLine: val }))}
-                  placeholder="Flat, building, street, area"
+                  value={form.addressLine1}
+                  onChangeText={(val) => setForm((prev) => ({ ...prev, addressLine1: val }))}
+                  placeholder="House / Flat / Street name"
                   placeholderTextColor={colors.textTertiary}
-                  style={[styles.input, errors.addressLine && styles.inputError]}
+                  style={[styles.input, errors.addressLine1 && styles.inputError]}
                 />
-                {errors.addressLine ? (
-                  <Text style={styles.errorText}>{errors.addressLine}</Text>
+                {errors.addressLine1 ? (
+                  <Text style={styles.errorText}>{errors.addressLine1}</Text>
                 ) : null}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Address Line 2 (Optional)</Text>
+                <TextInput
+                  value={form.addressLine2}
+                  onChangeText={(val) => setForm((prev) => ({ ...prev, addressLine2: val }))}
+                  placeholder="Apartment, suite, landmark"
+                  placeholderTextColor={colors.textTertiary}
+                  style={styles.input}
+                />
               </View>
 
               <View style={styles.rowInputs}>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>City</Text>
+                  <Text style={styles.inputLabel}>City *</Text>
                   <TextInput
                     value={form.city}
                     onChangeText={(val) => setForm((prev) => ({ ...prev, city: val }))}
@@ -200,7 +239,7 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
                 </View>
 
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>PIN Code</Text>
+                  <Text style={styles.inputLabel}>PIN Code *</Text>
                   <TextInput
                     value={form.pinCode}
                     onChangeText={(val) => setForm((prev) => ({ ...prev, pinCode: val }))}
@@ -215,7 +254,7 @@ export function DeliveryAddressCard({ address, onUpdateAddress }: DeliveryAddres
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>State</Text>
+                <Text style={styles.inputLabel}>State *</Text>
                 <TextInput
                   value={form.state}
                   onChangeText={(val) => setForm((prev) => ({ ...prev, state: val }))}
@@ -307,6 +346,15 @@ const styles = StyleSheet.create({
     fontSize: typography.secondary,
     fontWeight: '600',
   },
+  emptyContainer: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  emptyTitle: {
+    color: colors.textSecondary,
+    fontSize: typography.secondary,
+    fontWeight: '600',
+  },
   emptyPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -318,7 +366,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     borderRadius: radius.md,
     backgroundColor: colors.primarySoft,
-    marginTop: spacing.xs,
   },
   emptyPromptText: {
     color: colors.primary,
@@ -336,7 +383,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.card,
     padding: spacing.xl,
     gap: spacing.md,
-    maxHeight: '90%',
+    maxHeight: '92%',
   },
   modalHeader: {
     flexDirection: 'row',

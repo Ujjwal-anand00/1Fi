@@ -3,7 +3,10 @@ import type { ProductImage } from './marketplace';
 export type DeliveryAddress = {
   fullName: string;
   mobileNumber: string;
-  addressLine: string;
+  addressLine1: string;
+  addressLine2?: string;
+  /** Backwards compatible alias for single line display */
+  addressLine?: string;
   city: string;
   state: string;
   pinCode: string;
@@ -31,6 +34,8 @@ export type Order = {
   color?: string;
   storage?: string;
   quantity: number;
+  productPrice: number;
+  /** Backwards compatible alias for product price */
   productAmount: number;
   emiPlan: string;
   emiMonths: number;
@@ -40,7 +45,7 @@ export type Order = {
   totalPayable: number;
   deliveryAddress: DeliveryAddress;
   paymentMethod: PaymentMethod;
-  orderStatus: 'CONFIRMED' | 'PROCESSING' | 'DELIVERED';
+  orderStatus: 'Confirmed' | 'Shipped' | 'Delivered' | 'CONFIRMED' | 'PROCESSING';
   createdAt: string;
   expectedDelivery: string;
 };

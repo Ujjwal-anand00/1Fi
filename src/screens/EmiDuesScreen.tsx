@@ -1,0 +1,546 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+
+import type { RootTabParamList } from '../../App';
+import { ActiveEmiCard } from '../components/ActiveEmiCard';
+import { EmiRepaymentModal } from '../components/EmiRepaymentModal';
+import { UpcomingPaymentCard } from '../components/UpcomingPaymentCard';
+import {
+  getActiveEmiPlans,
+  getEmiOverview,
+  getUpcomingPayments,
+  payEmiInstallment,
+  subscribeToEmiUpdates,
+} from '../services/emiDuesService';
+import { colors } from '../theme/colors';
+import { radius } from '../theme/radius';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
+import type { ActiveEmiPlan, EmiOverviewSummary, UpcomingPayment } from '../types/emi';
+import type { PaymentMethod } from '../types/order';
+import { formatINR } from '../utils/formatters';
+import { EmiDetailsScreen } from './EmiDetailsScreen';
+
+export function EmiDuesScreen() {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+
+  const [overview, setOverview] = useState<EmiOverviewSummary | null>(null);
+  const [activePlans, setActivePlans] = useState<ActiveEmiPlan[]>([]);
+  const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
+
+  // Navigation state within EMI Dues
+  const [selectedPlanForDetails, setSelectedPlanForDetails] = useState<ActiveEmiPlan | null>(null);
+
+  // Repayment modal state
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [targetPlanForPay, setTargetPlanForPay] = useState<ActiveEmiPlan | null>(null);
+  const [targetInstallmentNumber, setTargetInstallmentNumber] = useState<number>(1);
+  const [amountDueForPay, setAmountDueForPay] = useState<number>(0);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [overviewData, plansData, paymentsData] = await Promise.all([
+        getEmiOverview(),
+        getActiveEmiPlans(),
+        getUpcomingPayments(),
+      ]);
+      setOverview(overviewData);
+      setActivePlans(plansData);
+      setUpcomingPayments(paymentsData);
+
+      // If user is viewing a plan, keep it updated
+      if (selectedPlanForDetails) {
+        const updated = plansData.find((p) => p.planId === selectedPlanForDetails.planId);
+        if (updated) setSelectedPlanForDetails(updated);
+      }
+    } catch {
+      // Ignore background refresh errors
+    }
+  }, [selectedPlanForDetails]);
+
+  useEffect(() => {
+    void loadData();
+    const unsubscribe = subscribeToEmiUpdates(() => {
+      void loadData();
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [loadData]);
+
+  // Open pay modal from Active Card (next unpaid installment)
+  const handleOpenPayFromCard = (plan: ActiveEmiPlan) => {
+    const nextUnpaid = plan.schedule.find((i) => i.status !== 'Paid');
+    if (!nextUnpaid) return;
+
+    setTargetPlanForPay(plan);
+    setTargetInstallmentNumber(nextUnpaid.installmentNumber);
+    setAmountDueForPay(nextUnpaid.amount);
+    setPaymentModalVisible(true);
+  };
+
+  // Open pay modal from Upcoming Payment card
+  const handleOpenPayFromUpcoming = (payment: UpcomingPayment) => {
+    const plan = activePlans.find((p) => p.planId === payment.planId);
+    if (!plan) return;
+
+    setTargetPlanForPay(plan);
+    setTargetInstallmentNumber(payment.installmentNumber);
+    setAmountDueForPay(payment.amount);
+    setPaymentModalVisible(true);
+  };
+
+  // Open pay modal from Details Screen schedule
+  const handleOpenPayFromDetailsSchedule = (plan: ActiveEmiPlan, installmentNumber: number) => {
+    const target = plan.schedule.find((i) => i.installmentNumber === installmentNumber);
+    if (!target) return;
+
+    setTargetPlanForPay(plan);
+    setTargetInstallmentNumber(installmentNumber);
+    setAmountDueForPay(target.amount);
+    setPaymentModalVisible(true);
+  };
+
+  // Confirm payment in modal
+  const handleConfirmRepayment = async (paymentMethod: PaymentMethod) => {
+    if (!targetPlanForPay) return;
+    await payEmiInstallment(targetPlanForPay.planId, targetInstallmentNumber, paymentMethod);
+    await loadData();
+  };
+
+  // Navigate to Marketplace
+  const handleExploreMarketplace = () => {
+    navigation.navigate('Shop');
+  };
+
+  // If viewing details for a specific plan
+  if (selectedPlanForDetails) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
+            <EmiDetailsScreen
+              plan={selectedPlanForDetails}
+              onBack={() => setSelectedPlanForDetails(null)}
+              onPayInstallment={handleOpenPayFromDetailsSchedule}
+            />
+          </View>
+        </ScrollView>
+
+        <EmiRepaymentModal
+          visible={paymentModalVisible}
+          productName={targetPlanForPay?.productName ?? ''}
+          installmentNumber={targetInstallmentNumber}
+          totalInstallments={targetPlanForPay?.totalInstallments ?? 1}
+          amountDue={amountDueForPay}
+          onClose={() => setPaymentModalVisible(false)}
+          onConfirmPayment={handleConfirmRepayment}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const hasActivePlans = activePlans.length > 0;
+  const progressPercent = overview ? Math.round(overview.overallRepaymentProgress * 100) : 0;
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.screenHeaderRow}>
+            <View style={styles.headerIconWrap}>
+              <Ionicons name="card-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.headerTitleWrap}>
+              <Text style={styles.screenTitle}>EMI Dues</Text>
+              <Text style={styles.screenSubtitle}>Manage your active plans &amp; repayments</Text>
+            </View>
+          </View>
+
+          {/* 1. EMI Dues Overview Card */}
+          {overview && hasActivePlans ? (
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewTopRow}>
+                <View style={styles.outstandingWrap}>
+                  <Text style={styles.outstandingLabel}>Total Outstanding</Text>
+                  <Text style={styles.outstandingValue}>
+                    {formatINR(overview.totalOutstanding)}
+                  </Text>
+                </View>
+
+                <View style={styles.plansBadge}>
+                  <Ionicons name="layers-outline" size={14} color={colors.primaryDark} />
+                  <Text style={styles.plansBadgeText}>
+                    {overview.activePlansCount} Active {overview.activePlansCount === 1 ? 'Plan' : 'Plans'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Next EMI Highlight */}
+              <View style={styles.nextEmiBox}>
+                <View style={styles.nextEmiLeft}>
+                  <Text style={styles.nextEmiLabel}>Next EMI Due</Text>
+                  <Text style={styles.nextEmiAmount}>{formatINR(overview.nextEmiDueAmount)}</Text>
+                </View>
+
+                <View style={styles.nextEmiRight}>
+                  <Ionicons name="calendar" size={16} color={colors.primary} />
+                  <Text style={styles.nextEmiDate}>Due {overview.nextDueDate}</Text>
+                </View>
+              </View>
+
+              {/* Repayment Progress */}
+              <View style={styles.progressSection}>
+                <View style={styles.progressMeta}>
+                  <Text style={styles.progressLabel}>Overall Repayment Progress</Text>
+                  <Text style={styles.progressPercent}>{progressPercent}%</Text>
+                </View>
+                <View style={styles.progressBarTrack}>
+                  <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {/* 2. Active EMI Plans Section */}
+          {hasActivePlans ? (
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionHeading}>Active EMI Plans</Text>
+                <Text style={styles.sectionCountBadge}>{activePlans.length}</Text>
+              </View>
+
+              <View style={styles.plansList}>
+                {activePlans.map((plan) => (
+                  <ActiveEmiCard
+                    key={plan.planId}
+                    plan={plan}
+                    onPressPlan={(p) => setSelectedPlanForDetails(p)}
+                    onPayEmi={handleOpenPayFromCard}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {/* 3. Upcoming Payments Section */}
+          {hasActivePlans && upcomingPayments.length > 0 ? (
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionHeading}>Upcoming Payments</Text>
+                <Text style={styles.upcomingSublabel}>Chronological schedule</Text>
+              </View>
+
+              <View style={styles.upcomingList}>
+                {upcomingPayments.map((payment) => (
+                  <UpcomingPaymentCard
+                    key={payment.id}
+                    payment={payment}
+                    onPayNow={handleOpenPayFromUpcoming}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {/* 4. Empty State (if no active plans) */}
+          {!hasActivePlans ? (
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="card-outline" size={42} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>No Active EMIs</Text>
+              <Text style={styles.emptySubtitle}>
+                Your active EMI purchases will appear here.
+              </Text>
+              <Pressable
+                style={styles.exploreBtn}
+                onPress={handleExploreMarketplace}
+                accessibilityRole="button"
+                accessibilityLabel="Explore Marketplace"
+              >
+                <Ionicons name="storefront-outline" size={18} color={colors.white} />
+                <Text style={styles.exploreBtnText}>Explore Marketplace</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
+
+      {/* Repayment Bottom Sheet Modal */}
+      <EmiRepaymentModal
+        visible={paymentModalVisible}
+        productName={targetPlanForPay?.productName ?? ''}
+        installmentNumber={targetInstallmentNumber}
+        totalInstallments={targetPlanForPay?.totalInstallments ?? 1}
+        amountDue={amountDueForPay}
+        onClose={() => setPaymentModalVisible(false)}
+        onConfirmPayment={handleConfirmRepayment}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    // Clearance for floating bottom navigation
+    paddingBottom: 160,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    gap: spacing.lg,
+  },
+  screenHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  screenTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.screenTitle,
+    fontWeight: '800',
+    lineHeight: 30,
+  },
+  screenSubtitle: {
+    color: colors.textSecondary,
+    fontSize: typography.secondary,
+  },
+  overviewCard: {
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    gap: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  overviewTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  outstandingWrap: {
+    gap: 2,
+  },
+  outstandingLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.small,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  outstandingValue: {
+    color: colors.textPrimary,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 36,
+  },
+  plansBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  plansBadgeText: {
+    color: colors.primaryDark,
+    fontSize: typography.small,
+    fontWeight: '800',
+  },
+  nextEmiBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  nextEmiLeft: {
+    gap: 2,
+  },
+  nextEmiLabel: {
+    color: colors.primaryDark,
+    fontSize: typography.small,
+    fontWeight: '700',
+  },
+  nextEmiAmount: {
+    color: colors.primaryDark,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  nextEmiRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  nextEmiDate: {
+    color: colors.textPrimary,
+    fontSize: typography.small,
+    fontWeight: '800',
+  },
+  progressSection: {
+    gap: spacing.xs,
+  },
+  progressMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.small,
+    fontWeight: '700',
+  },
+  progressPercent: {
+    color: colors.primary,
+    fontSize: typography.small,
+    fontWeight: '800',
+  },
+  progressBarTrack: {
+    height: 8,
+    borderRadius: radius.pill,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  sectionWrap: {
+    gap: spacing.sm + 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionHeading: {
+    color: colors.textPrimary,
+    fontSize: typography.sectionTitle,
+    fontWeight: '800',
+  },
+  sectionCountBadge: {
+    backgroundColor: colors.primarySoft,
+    color: colors.primaryDark,
+    fontSize: typography.small,
+    fontWeight: '800',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  upcomingSublabel: {
+    color: colors.textTertiary,
+    fontSize: typography.small,
+    fontWeight: '600',
+  },
+  plansList: {
+    gap: spacing.sm + 2,
+  },
+  upcomingList: {
+    gap: spacing.xs + 2,
+  },
+  emptyCard: {
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
+    padding: spacing.xl * 1.5,
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  emptyIconCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.sectionTitle,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: colors.textSecondary,
+    fontSize: typography.body,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 260,
+  },
+  exploreBtn: {
+    minHeight: 48,
+    borderRadius: radius.button,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.xs,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  exploreBtnText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+});
