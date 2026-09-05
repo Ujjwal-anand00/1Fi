@@ -99,12 +99,19 @@ export function UpcomingPaymentCard({ payment, onPayNow }: UpcomingPaymentCardPr
 
         {payment.status !== 'Paid' ? (
           <Pressable
-            style={styles.payNowBtn}
+            style={[styles.payNowBtn, payment.status === 'Due Soon' && styles.payNowBtnDueSoon]}
             onPress={() => onPayNow(payment)}
             accessibilityRole="button"
-            accessibilityLabel={`Pay ${formatINR(payment.amount)} for ${payment.productName}`}
+            accessibilityLabel={`${payment.status === 'Due Soon' ? 'Pay EMI' : 'Prepay'} ${formatINR(payment.amount)} for ${payment.productName}`}
           >
-            <Text style={styles.payNowText}>Pay Now</Text>
+            <Text
+              style={[
+                styles.payNowText,
+                payment.status === 'Due Soon' && styles.payNowTextDueSoon,
+              ]}
+            >
+              {payment.status === 'Due Soon' ? 'Pay EMI' : 'Prepay'}
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -197,13 +204,21 @@ const styles = StyleSheet.create({
   payNowBtn: {
     backgroundColor: colors.primarySoft,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: radius.sm,
     marginTop: 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  payNowBtnDueSoon: {
+    backgroundColor: colors.primary,
   },
   payNowText: {
     color: colors.primaryDark,
     fontSize: typography.small,
     fontWeight: '800',
+  },
+  payNowTextDueSoon: {
+    color: colors.white,
   },
 });

@@ -1,4 +1,4 @@
-import type { ActiveEmiPlan, EmiOverviewSummary, Installment, InstallmentStatus, UpcomingPayment } from '../types/emi';
+import type { ActiveEmiPlan, EmiOverviewSummary, EmiPaymentReceipt, EmiPaymentResult, Installment, InstallmentStatus, UpcomingPayment } from '../types/emi';
 import type { Order, PaymentMethod } from '../types/order';
 
 // In-memory active EMI plans store
@@ -249,27 +249,36 @@ export async function getUpcomingPayments(): Promise<UpcomingPayment[]> {
   });
 }
 
-// Pay a single EMI installment
+// Pay a single EMI installment and generate official transaction receipt
 export async function payEmiInstallment(
   planId: string,
   installmentNumber: number,
-  paymentMethod: PaymentMethod = 'upi'
-): Promise<ActiveEmiPlan> {
+  paymentMethod: PaymentMethod = 'upi',
+  options?: { shouldFail?: boolean }
+): Promise<EmiPaymentResult> {
+  if (options?.shouldFail) {
+    throw new Error('Payment was declined by issuing bank. Please check your mandate and try again.');
+  }
+
   const planIndex = activeEmiPlansStore.findIndex((p) => p.planId === planId);
   if (planIndex === -1) {
-    throw new Error('EMI plan not found');
+    throw new Error('EMI plan not found. Please refresh and try again.');
   }
 
   const plan = activeEmiPlansStore[planIndex];
   const targetInstallment = plan.schedule.find((i) => i.installmentNumber === installmentNumber);
 
   if (!targetInstallment) {
-    throw new Error(`Installment ${installmentNumber} not found`);
+    throw new Error(`Installment ${installmentNumber} was not found on this plan.`);
   }
 
   if (targetInstallment.status === 'Paid') {
-    return plan;
+    throw new Error(`Installment ${installmentNumber} has already been paid.`);
   }
+
+  const previousOutstanding = plan.remainingAmount;
+  const paymentDate = new Date().toISOString();
+  const transactionId = `1FI-TXN-${Math.floor(100000 + Math.random() * 900000)}`;
 
   // Mark target installment as Paid
   const updatedSchedule = plan.schedule.map((inst) => {
@@ -277,7 +286,7 @@ export async function payEmiInstallment(
       return {
         ...inst,
         status: 'Paid' as const,
-        paidAt: new Date().toISOString(),
+        paidAt: paymentDate,
         paymentMethod,
       };
     }
@@ -301,7 +310,6 @@ export async function payEmiInstallment(
     nextDueDate = nextUnpaid.dueDate;
     nextDueAmount = nextUnpaid.amount;
     nextDueStatus = 'Due Soon';
-    // Update its status to Due Soon
     nextUnpaid.status = 'Due Soon';
   }
 
@@ -318,5 +326,27 @@ export async function payEmiInstallment(
 
   activeEmiPlansStore[planIndex] = updatedPlan;
   notifyListeners();
-  return updatedPlan;
+
+  const receipt: EmiPaymentReceipt = {
+    transactionId,
+    planId: plan.planId,
+    orderId: plan.orderId,
+    productName: plan.productName,
+    productImage: plan.productImage,
+    variant: plan.variant,
+    installmentNumber,
+    totalInstallments: plan.totalInstallments,
+    amountPaid: targetInstallment.amount,
+    paymentMethod,
+    paymentDate,
+    previousOutstanding,
+    updatedOutstanding: newRemainingAmount,
+    nextDueDate,
+    nextDueAmount,
+  };
+
+  return {
+    plan: updatedPlan,
+    receipt,
+  };
 }

@@ -7,13 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { RootTabParamList } from '../../App';
 import { ActiveEmiCard } from '../components/ActiveEmiCard';
-import { EmiRepaymentModal } from '../components/EmiRepaymentModal';
 import { UpcomingPaymentCard } from '../components/UpcomingPaymentCard';
 import {
   getActiveEmiPlans,
   getEmiOverview,
   getUpcomingPayments,
-  payEmiInstallment,
   subscribeToEmiUpdates,
 } from '../services/emiDuesService';
 import { colors } from '../theme/colors';
@@ -21,9 +19,9 @@ import { radius } from '../theme/radius';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import type { ActiveEmiPlan, EmiOverviewSummary, UpcomingPayment } from '../types/emi';
-import type { PaymentMethod } from '../types/order';
 import { formatINR } from '../utils/formatters';
 import { EmiDetailsScreen } from './EmiDetailsScreen';
+import { EmiPaymentScreen } from './EmiPaymentScreen';
 
 export function EmiDuesScreen() {
   const insets = useSafeAreaInsets();
@@ -36,11 +34,11 @@ export function EmiDuesScreen() {
   // Navigation state within EMI Dues
   const [selectedPlanForDetails, setSelectedPlanForDetails] = useState<ActiveEmiPlan | null>(null);
 
-  // Repayment modal state
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [targetPlanForPay, setTargetPlanForPay] = useState<ActiveEmiPlan | null>(null);
-  const [targetInstallmentNumber, setTargetInstallmentNumber] = useState<number>(1);
-  const [amountDueForPay, setAmountDueForPay] = useState<number>(0);
+  // Dedicated Payment screen target state
+  const [paymentTarget, setPaymentTarget] = useState<{
+    plan: ActiveEmiPlan;
+    installmentNumber: number;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -53,13 +51,13 @@ export function EmiDuesScreen() {
       setActivePlans(plansData);
       setUpcomingPayments(paymentsData);
 
-      // If user is viewing a plan, keep it updated
+      // If user is currently viewing details of a plan, keep it synchronized
       if (selectedPlanForDetails) {
         const updated = plansData.find((p) => p.planId === selectedPlanForDetails.planId);
         if (updated) setSelectedPlanForDetails(updated);
       }
     } catch {
-      // Ignore background refresh errors
+      // Ignore background load errors
     }
   }, [selectedPlanForDetails]);
 
@@ -73,44 +71,34 @@ export function EmiDuesScreen() {
     };
   }, [loadData]);
 
-  // Open pay modal from Active Card (next unpaid installment)
+  // Open payment screen from Active Card (current payable installment)
   const handleOpenPayFromCard = (plan: ActiveEmiPlan) => {
     const nextUnpaid = plan.schedule.find((i) => i.status !== 'Paid');
     if (!nextUnpaid) return;
 
-    setTargetPlanForPay(plan);
-    setTargetInstallmentNumber(nextUnpaid.installmentNumber);
-    setAmountDueForPay(nextUnpaid.amount);
-    setPaymentModalVisible(true);
+    setPaymentTarget({
+      plan,
+      installmentNumber: nextUnpaid.installmentNumber,
+    });
   };
 
-  // Open pay modal from Upcoming Payment card
+  // Open payment screen from Upcoming Payment card (Due Soon or Prepay)
   const handleOpenPayFromUpcoming = (payment: UpcomingPayment) => {
     const plan = activePlans.find((p) => p.planId === payment.planId);
     if (!plan) return;
 
-    setTargetPlanForPay(plan);
-    setTargetInstallmentNumber(payment.installmentNumber);
-    setAmountDueForPay(payment.amount);
-    setPaymentModalVisible(true);
+    setPaymentTarget({
+      plan,
+      installmentNumber: payment.installmentNumber,
+    });
   };
 
-  // Open pay modal from Details Screen schedule
+  // Open payment screen from Details Screen schedule (Pay Now or Prepay)
   const handleOpenPayFromDetailsSchedule = (plan: ActiveEmiPlan, installmentNumber: number) => {
-    const target = plan.schedule.find((i) => i.installmentNumber === installmentNumber);
-    if (!target) return;
-
-    setTargetPlanForPay(plan);
-    setTargetInstallmentNumber(installmentNumber);
-    setAmountDueForPay(target.amount);
-    setPaymentModalVisible(true);
-  };
-
-  // Confirm payment in modal
-  const handleConfirmRepayment = async (paymentMethod: PaymentMethod) => {
-    if (!targetPlanForPay) return;
-    await payEmiInstallment(targetPlanForPay.planId, targetInstallmentNumber, paymentMethod);
-    await loadData();
+    setPaymentTarget({
+      plan,
+      installmentNumber,
+    });
   };
 
   // Navigate to Marketplace
@@ -118,13 +106,40 @@ export function EmiDuesScreen() {
     navigation.navigate('Shop');
   };
 
-  // If viewing details for a specific plan
+  // 1. Dedicated EMI Payment Screen Flow
+  if (paymentTarget) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
+            <EmiPaymentScreen
+              plan={paymentTarget.plan}
+              installmentNumber={paymentTarget.installmentNumber}
+              onBack={() => setPaymentTarget(null)}
+              onPaymentSuccess={async () => {
+                await loadData();
+                setPaymentTarget(null);
+                setSelectedPlanForDetails(null);
+              }}
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // 2. EMI Plan Details Screen Flow
   if (selectedPlanForDetails) {
     return (
       <SafeAreaView style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
             <EmiDetailsScreen
@@ -134,16 +149,6 @@ export function EmiDuesScreen() {
             />
           </View>
         </ScrollView>
-
-        <EmiRepaymentModal
-          visible={paymentModalVisible}
-          productName={targetPlanForPay?.productName ?? ''}
-          installmentNumber={targetInstallmentNumber}
-          totalInstallments={targetPlanForPay?.totalInstallments ?? 1}
-          amountDue={amountDueForPay}
-          onClose={() => setPaymentModalVisible(false)}
-          onConfirmPayment={handleConfirmRepayment}
-        />
       </SafeAreaView>
     );
   }
@@ -151,6 +156,7 @@ export function EmiDuesScreen() {
   const hasActivePlans = activePlans.length > 0;
   const progressPercent = overview ? Math.round(overview.overallRepaymentProgress * 100) : 0;
 
+  // 3. Main EMI Dues Dashboard
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
@@ -279,17 +285,6 @@ export function EmiDuesScreen() {
           ) : null}
         </View>
       </ScrollView>
-
-      {/* Repayment Bottom Sheet Modal */}
-      <EmiRepaymentModal
-        visible={paymentModalVisible}
-        productName={targetPlanForPay?.productName ?? ''}
-        installmentNumber={targetInstallmentNumber}
-        totalInstallments={targetPlanForPay?.totalInstallments ?? 1}
-        amountDue={amountDueForPay}
-        onClose={() => setPaymentModalVisible(false)}
-        onConfirmPayment={handleConfirmRepayment}
-      />
     </SafeAreaView>
   );
 }

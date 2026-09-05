@@ -59,3 +59,26 @@ export type UpcomingPayment = {
   dueDate: string;
   status: InstallmentStatus;
 };
+
+export type EmiPaymentReceipt = {
+  transactionId: string;
+  planId: string;
+  orderId: string;
+  productName: string;
+  productImage: ProductImage;
+  variant: string;
+  installmentNumber: number;
+  totalInstallments: number;
+  amountPaid: number;
+  paymentMethod: PaymentMethod;
+  paymentDate: string;
+  previousOutstanding: number;
+  updatedOutstanding: number;
+  nextDueDate: string;
+  nextDueAmount: number;
+};
+
+export type EmiPaymentResult = {
+  plan: ActiveEmiPlan;
+  receipt: EmiPaymentReceipt;
+};
