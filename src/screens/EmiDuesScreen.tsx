@@ -7,6 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import type { RootTabParamList } from '../../App';
 import { ActiveEmiCard } from '../components/ActiveEmiCard';
+import { EmptyState } from '../components/EmptyState';
+import { LoadingState } from '../components/LoadingState';
+import { SectionHeader } from '../components/SectionHeader';
 import { UpcomingPaymentCard } from '../components/UpcomingPaymentCard';
 import {
   getActiveEmiPlans,
@@ -27,6 +30,7 @@ export function EmiDuesScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
 
+  const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<EmiOverviewSummary | null>(null);
   const [activePlans, setActivePlans] = useState<ActiveEmiPlan[]>([]);
   const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
@@ -58,6 +62,8 @@ export function EmiDuesScreen() {
       }
     } catch {
       // Ignore background load errors
+    } finally {
+      setLoading(false);
     }
   }, [selectedPlanForDetails]);
 
@@ -176,113 +182,109 @@ export function EmiDuesScreen() {
             </View>
           </View>
 
-          {/* 1. EMI Dues Overview Card */}
-          {overview && hasActivePlans ? (
-            <View style={styles.overviewCard}>
-              <View style={styles.overviewTopRow}>
-                <View style={styles.outstandingWrap}>
-                  <Text style={styles.outstandingLabel}>Total Outstanding</Text>
-                  <Text style={styles.outstandingValue}>
-                    {formatINR(overview.totalOutstanding)}
-                  </Text>
-                </View>
+          {/* Loading State during initial retrieval */}
+          {loading ? (
+            <LoadingState message="Loading your EMI dues..." />
+          ) : (
+            <>
+              {/* 1. EMI Dues Overview Card */}
+              {overview && hasActivePlans ? (
+                <View style={styles.overviewCard}>
+                  <View style={styles.overviewTopRow}>
+                    <View style={styles.outstandingWrap}>
+                      <Text style={styles.outstandingLabel}>Total Outstanding</Text>
+                      <Text style={styles.outstandingValue}>
+                        {formatINR(overview.totalOutstanding)}
+                      </Text>
+                    </View>
 
-                <View style={styles.plansBadge}>
-                  <Ionicons name="layers-outline" size={14} color={colors.primaryDark} />
-                  <Text style={styles.plansBadgeText}>
-                    {overview.activePlansCount} Active {overview.activePlansCount === 1 ? 'Plan' : 'Plans'}
-                  </Text>
-                </View>
-              </View>
+                    <View style={styles.plansBadge}>
+                      <Ionicons name="layers-outline" size={14} color={colors.primaryDark} />
+                      <Text style={styles.plansBadgeText}>
+                        {overview.activePlansCount} Active {overview.activePlansCount === 1 ? 'Plan' : 'Plans'}
+                      </Text>
+                    </View>
+                  </View>
 
-              {/* Next EMI Highlight */}
-              <View style={styles.nextEmiBox}>
-                <View style={styles.nextEmiLeft}>
-                  <Text style={styles.nextEmiLabel}>Next EMI Due</Text>
-                  <Text style={styles.nextEmiAmount}>{formatINR(overview.nextEmiDueAmount)}</Text>
-                </View>
+                  {/* Next EMI Highlight */}
+                  <View style={styles.nextEmiBox}>
+                    <View style={styles.nextEmiLeft}>
+                      <Text style={styles.nextEmiLabel}>Next EMI Due</Text>
+                      <Text style={styles.nextEmiAmount}>{formatINR(overview.nextEmiDueAmount)}</Text>
+                    </View>
 
-                <View style={styles.nextEmiRight}>
-                  <Ionicons name="calendar" size={16} color={colors.primary} />
-                  <Text style={styles.nextEmiDate}>Due {overview.nextDueDate}</Text>
-                </View>
-              </View>
+                    <View style={styles.nextEmiRight}>
+                      <Ionicons name="calendar" size={16} color={colors.primary} />
+                      <Text style={styles.nextEmiDate}>Due {overview.nextDueDate}</Text>
+                    </View>
+                  </View>
 
-              {/* Repayment Progress */}
-              <View style={styles.progressSection}>
-                <View style={styles.progressMeta}>
-                  <Text style={styles.progressLabel}>Overall Repayment Progress</Text>
-                  <Text style={styles.progressPercent}>{progressPercent}%</Text>
+                  {/* Repayment Progress */}
+                  <View style={styles.progressSection}>
+                    <View style={styles.progressMeta}>
+                      <Text style={styles.progressLabel}>Overall Repayment Progress</Text>
+                      <Text style={styles.progressPercent}>{progressPercent}%</Text>
+                    </View>
+                    <View style={styles.progressBarTrack}>
+                      <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.progressBarTrack}>
-                  <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-                </View>
-              </View>
-            </View>
-          ) : null}
+              ) : null}
 
-          {/* 2. Active EMI Plans Section */}
-          {hasActivePlans ? (
-            <View style={styles.sectionWrap}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionHeading}>Active EMI Plans</Text>
-                <Text style={styles.sectionCountBadge}>{activePlans.length}</Text>
-              </View>
-
-              <View style={styles.plansList}>
-                {activePlans.map((plan) => (
-                  <ActiveEmiCard
-                    key={plan.planId}
-                    plan={plan}
-                    onPressPlan={(p) => setSelectedPlanForDetails(p)}
-                    onPayEmi={handleOpenPayFromCard}
+              {/* 2. Active EMI Plans Section */}
+              {hasActivePlans ? (
+                <View style={styles.sectionWrap}>
+                  <SectionHeader
+                    title="Active EMI Plans"
+                    badge={activePlans.length}
                   />
-                ))}
-              </View>
-            </View>
-          ) : null}
 
-          {/* 3. Upcoming Payments Section */}
-          {hasActivePlans && upcomingPayments.length > 0 ? (
-            <View style={styles.sectionWrap}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionHeading}>Upcoming Payments</Text>
-                <Text style={styles.upcomingSublabel}>Chronological schedule</Text>
-              </View>
+                  <View style={styles.plansList}>
+                    {activePlans.map((plan) => (
+                      <ActiveEmiCard
+                        key={plan.planId}
+                        plan={plan}
+                        onPressPlan={(p) => setSelectedPlanForDetails(p)}
+                        onPayEmi={handleOpenPayFromCard}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
-              <View style={styles.upcomingList}>
-                {upcomingPayments.map((payment) => (
-                  <UpcomingPaymentCard
-                    key={payment.id}
-                    payment={payment}
-                    onPayNow={handleOpenPayFromUpcoming}
+              {/* 3. Upcoming Payments Section */}
+              {hasActivePlans && upcomingPayments.length > 0 ? (
+                <View style={styles.sectionWrap}>
+                  <SectionHeader
+                    title="Upcoming Payments"
+                    subtitle="Chronological schedule"
                   />
-                ))}
-              </View>
-            </View>
-          ) : null}
 
-          {/* 4. Empty State (if no active plans) */}
-          {!hasActivePlans ? (
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="card-outline" size={42} color={colors.primary} />
-              </View>
-              <Text style={styles.emptyTitle}>No Active EMIs</Text>
-              <Text style={styles.emptySubtitle}>
-                Your active EMI purchases will appear here.
-              </Text>
-              <Pressable
-                style={styles.exploreBtn}
-                onPress={handleExploreMarketplace}
-                accessibilityRole="button"
-                accessibilityLabel="Explore Marketplace"
-              >
-                <Ionicons name="storefront-outline" size={18} color={colors.white} />
-                <Text style={styles.exploreBtnText}>Explore Marketplace</Text>
-              </Pressable>
-            </View>
-          ) : null}
+                  <View style={styles.upcomingList}>
+                    {upcomingPayments.map((payment) => (
+                      <UpcomingPaymentCard
+                        key={payment.id}
+                        payment={payment}
+                        onPayNow={handleOpenPayFromUpcoming}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {/* 4. Empty State (if no active plans) */}
+              {!hasActivePlans ? (
+                <EmptyState
+                  icon="card-outline"
+                  title="No Active EMIs"
+                  subtitle="Your active EMI purchases will appear here."
+                  actionLabel="Explore Marketplace"
+                  onAction={handleExploreMarketplace}
+                />
+              ) : null}
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -450,92 +452,10 @@ const styles = StyleSheet.create({
   sectionWrap: {
     gap: spacing.sm + 2,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionHeading: {
-    color: colors.textPrimary,
-    fontSize: typography.sectionTitle,
-    fontWeight: '800',
-  },
-  sectionCountBadge: {
-    backgroundColor: colors.primarySoft,
-    color: colors.primaryDark,
-    fontSize: typography.small,
-    fontWeight: '800',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  upcomingSublabel: {
-    color: colors.textTertiary,
-    fontSize: typography.small,
-    fontWeight: '600',
-  },
   plansList: {
     gap: spacing.sm + 2,
   },
   upcomingList: {
     gap: spacing.xs + 2,
-  },
-  emptyCard: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-    padding: spacing.xl * 1.5,
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  emptyIconCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  emptyTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.sectionTitle,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    color: colors.textSecondary,
-    fontSize: typography.body,
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 260,
-  },
-  exploreBtn: {
-    minHeight: 48,
-    borderRadius: radius.button,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs + 2,
-    paddingHorizontal: spacing.xl,
-    marginTop: spacing.xs,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  exploreBtnText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.2,
   },
 });

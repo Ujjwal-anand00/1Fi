@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { DeliveryAddressCard } from '../components/DeliveryAddressCard';
 import { EmiTermsSection } from '../components/EmiTermsSection';
 import { PaymentMethodSelector } from '../components/PaymentMethodSelector';
+import { PriceSummary } from '../components/PriceSummary';
 import { createOrder, defaultDeliveryAddress } from '../services/orderService';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
@@ -153,48 +154,15 @@ export function CheckoutScreen({
       </View>
 
       {/* 2. Price Summary Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="receipt-outline" size={20} color={colors.primary} />
-          <Text style={styles.cardTitle}>Price Summary</Text>
-        </View>
-
-        <View style={styles.breakdownWrap}>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Product Price</Text>
-            <Text style={styles.breakdownValue}>{formatINR(emiCalc.principal)}</Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Interest</Text>
-            <Text style={[styles.breakdownValue, emiCalc.isNoCost && styles.noCostGreen]}>
-              {emiCalc.isNoCost ? '₹0 (No-Cost EMI)' : formatINR(emiCalc.interestAmount)}
-            </Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Processing Fee</Text>
-            <Text style={styles.breakdownValue}>
-              {emiCalc.processingFee > 0 ? formatINR(emiCalc.processingFee) : 'FREE'}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Payable</Text>
-            <Text style={styles.totalValue}>{formatINR(emiCalc.totalPayable)}</Text>
-          </View>
-
-          {/* EMI Installment Note */}
-          <View style={styles.emiScheduleBox}>
-            <Ionicons name="flash" size={14} color={colors.primary} />
-            <Text style={styles.emiScheduleText}>
-              EMI: <Text style={styles.emiScheduleBold}>{formatINR(emiCalc.monthlyEmi)}</Text> × {emiCalc.months} months
-            </Text>
-          </View>
-        </View>
-      </View>
+      <PriceSummary
+        productPrice={emiCalc.principal}
+        interestAmount={emiCalc.interestAmount}
+        processingFee={emiCalc.processingFee}
+        totalPayable={emiCalc.totalPayable}
+        isNoCost={emiCalc.isNoCost}
+        monthlyEmi={emiCalc.monthlyEmi}
+        months={emiCalc.months}
+      />
 
       {/* 3. Delivery Address Section */}
       <DeliveryAddressCard

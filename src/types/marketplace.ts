@@ -15,16 +15,26 @@ export type ProductVariant = {
   value: string;
   available: boolean;
   price: number;
+  configuration?: string;
+  color?: string;
 };
 
 export type EmiPlan = {
   id: string;
   durationMonths: number;
+  tenure?: number;
   monthlyAmount: number;
   totalAmount: number;
+  totalPayable?: number;
   interestRate: number;
   processingFee: number;
   available: boolean;
+  isNoCost?: boolean;
+};
+
+export type ProductSpecification = {
+  key: string;
+  value: string;
 };
 
 export type Product = {
@@ -37,4 +47,5 @@ export type Product = {
   variants: ProductVariant[];
   emiPlans: EmiPlan[];
   details: string[];
+  specifications?: ProductSpecification[];
 };

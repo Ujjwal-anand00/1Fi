@@ -3,6 +3,9 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { ErrorState } from '../components/ErrorState';
+import { LoadingState } from '../components/LoadingState';
+import { SectionHeader } from '../components/SectionHeader';
 import { EmiPlanCard } from '../components/EmiPlanCard';
 import { VariantSelector } from '../components/VariantSelector';
 import { getProductById } from '../services/marketplaceService';
@@ -16,6 +19,8 @@ import { formatINR } from '../utils/formatters';
 
 type ProductDetailsScreenProps = {
   productId: string;
+  initialVariantId?: string | null;
+  initialEmiPlanId?: string | null;
   onBack?: () => void;
   onProceedToCheckout?: (params: {
     product: Product;
@@ -26,6 +31,8 @@ type ProductDetailsScreenProps = {
 
 export function ProductDetailsScreen({
   productId,
+  initialVariantId,
+  initialEmiPlanId,
   onBack,
   onProceedToCheckout,
 }: ProductDetailsScreenProps) {
@@ -34,8 +41,8 @@ export function ProductDetailsScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
-  const [selectedEmiPlanId, setSelectedEmiPlanId] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(initialVariantId ?? null);
+  const [selectedEmiPlanId, setSelectedEmiPlanId] = useState<string | null>(initialEmiPlanId ?? null);
   const [ctaConfirmed, setCtaConfirmed] = useState(false);
 
   // Clearance for floating bottom navigation
@@ -55,12 +62,14 @@ export function ProductDetailsScreen({
 
         if (data) {
           setProduct(data);
-          // Default to first available variant
-          const defaultVariant = data.variants.find((v) => v.available) ?? data.variants[0];
+          // Preserve passed initialVariantId if valid, otherwise default to first available
+          const matchedVariant = initialVariantId ? data.variants.find((v) => v.id === initialVariantId) : null;
+          const defaultVariant = matchedVariant ?? (data.variants.find((v) => v.available) ?? data.variants[0]);
           setSelectedVariantId(defaultVariant ? defaultVariant.id : null);
 
-          // Default to first available EMI plan
-          const defaultPlan = data.emiPlans.find((p) => p.available) ?? data.emiPlans[0];
+          // Preserve passed initialEmiPlanId if valid, otherwise default to first available
+          const matchedPlan = initialEmiPlanId ? data.emiPlans.find((p) => p.id === initialEmiPlanId) : null;
+          const defaultPlan = matchedPlan ?? (data.emiPlans.find((p) => p.available) ?? data.emiPlans[0]);
           setSelectedEmiPlanId(defaultPlan ? defaultPlan.id : null);
         } else {
           setProduct(null);
@@ -82,7 +91,7 @@ export function ProductDetailsScreen({
     return () => {
       isMounted = false;
     };
-  }, [productId]);
+  }, [productId, initialVariantId, initialEmiPlanId]);
 
   // Active variant & dynamic price calculation (SINGLE SOURCE OF TRUTH)
   const activeVariant = useMemo(() => {
@@ -156,10 +165,7 @@ export function ProductDetailsScreen({
             <Text style={styles.backText}>Back to Marketplace</Text>
           </Pressable>
         ) : null}
-        <View style={styles.stateCard}>
-          <ActivityIndicator size="large" color={colors.primary} style={styles.spinner} />
-          <Text style={styles.stateTitle}>Loading product details...</Text>
-        </View>
+        <LoadingState message="Loading product details..." />
         <View style={{ height: bottomClearance }} />
       </View>
     );
@@ -174,15 +180,12 @@ export function ProductDetailsScreen({
             <Text style={styles.backText}>Back to Marketplace</Text>
           </Pressable>
         ) : null}
-        <View style={styles.stateCard}>
-          <Ionicons name="alert-circle-outline" size={36} color={colors.danger} />
-          <Text style={styles.stateTitle}>{error ?? 'Product not found'}</Text>
-          {onBack ? (
-            <Pressable style={styles.actionButton} onPress={onBack}>
-              <Text style={styles.actionButtonText}>Back to Products</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        <ErrorState
+          title="Product Not Available"
+          message={error ?? 'The requested product could not be found.'}
+          actionLabel="Back to Products"
+          onAction={onBack}
+        />
         <View style={{ height: bottomClearance }} />
       </View>
     );
@@ -247,6 +250,19 @@ export function ProductDetailsScreen({
               <View key={index} style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
                 <Text style={styles.featureText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Technical Specifications */}
+        {product.specifications && product.specifications.length > 0 ? (
+          <View style={styles.specsWrap}>
+            <Text style={styles.specsHeading}>Specifications</Text>
+            {product.specifications.map((spec, index) => (
+              <View key={index} style={styles.specRow}>
+                <Text style={styles.specKey}>{spec.key}</Text>
+                <Text style={styles.specValue}>{spec.value}</Text>
               </View>
             ))}
           </View>
@@ -469,6 +485,34 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: typography.secondary,
     fontWeight: '600',
+  },
+  specsWrap: {
+    gap: spacing.xs + 2,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSoft,
+  },
+  specsHeading: {
+    color: colors.textPrimary,
+    fontSize: typography.body,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  specRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  specKey: {
+    color: colors.textSecondary,
+    fontSize: typography.secondary,
+    fontWeight: '500',
+  },
+  specValue: {
+    color: colors.textPrimary,
+    fontSize: typography.secondary,
+    fontWeight: '700',
   },
   sectionCard: {
     borderRadius: radius.card,

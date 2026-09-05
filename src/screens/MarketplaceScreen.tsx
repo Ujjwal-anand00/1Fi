@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingState } from '../components/LoadingState';
 import { MarketplaceSearch } from '../components/MarketplaceSearch';
 import { ProductCard } from '../components/ProductCard';
+import { SectionHeader } from '../components/SectionHeader';
 import { useProducts } from '../hooks/useProducts';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
@@ -28,8 +32,10 @@ export function MarketplaceScreen() {
   const { products, loading, error, refetch } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Navigation flow state
+  // Navigation flow state with selection preservation
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [selectedEmiPlanId, setSelectedEmiPlanId] = useState<string | null>(null);
   const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -57,6 +63,8 @@ export function MarketplaceScreen() {
           setConfirmedOrder(null);
           setCheckoutData(null);
           setSelectedProductId(null);
+          setSelectedVariantId(null);
+          setSelectedEmiPlanId(null);
           setSearchQuery('');
         }}
       />
@@ -73,6 +81,8 @@ export function MarketplaceScreen() {
           setConfirmedOrder(null);
           setCheckoutData(null);
           setSelectedProductId(null);
+          setSelectedVariantId(null);
+          setSelectedEmiPlanId(null);
           setSearchQuery('');
         }}
       />
@@ -95,19 +105,31 @@ export function MarketplaceScreen() {
     );
   }
 
-  // 3. Product Details Screen
+  // 3. Product Details Screen (preserves selected variant and EMI plan on back navigation)
   if (selectedProductId) {
     return (
       <ProductDetailsScreen
         productId={selectedProductId}
-        onBack={() => setSelectedProductId(null)}
-        onProceedToCheckout={(data) => setCheckoutData(data)}
+        initialVariantId={selectedVariantId}
+        initialEmiPlanId={selectedEmiPlanId}
+        onBack={() => {
+          setSelectedProductId(null);
+          setSelectedVariantId(null);
+          setSelectedEmiPlanId(null);
+        }}
+        onProceedToCheckout={(data) => {
+          setSelectedVariantId(data.selectedVariant.id);
+          setSelectedEmiPlanId(data.selectedEmiPlan.id);
+          setCheckoutData(data);
+        }}
       />
     );
   }
 
   const handleProductPress = (product: Product) => {
     setSelectedProductId(product.id);
+    setSelectedVariantId(null);
+    setSelectedEmiPlanId(null);
   };
 
   return (
@@ -132,51 +154,38 @@ export function MarketplaceScreen() {
 
       {/* Loading State */}
       {loading ? (
-        <View style={styles.stateCard}>
-          <ActivityIndicator size="large" color={colors.primary} style={styles.spinner} />
-          <Text style={styles.stateTitle}>Loading products...</Text>
-        </View>
+        <LoadingState message="Loading products..." />
       ) : error ? (
         /* Error State */
-        <View style={styles.stateCard}>
-          <View style={[styles.stateIcon, styles.errorIcon]}>
-            <Ionicons name="alert-circle-outline" size={28} color={colors.danger} />
-          </View>
-          <Text style={styles.stateTitle}>Unable to load products.</Text>
-          <Text style={styles.stateSubtitle}>{error}</Text>
-          <Pressable style={styles.actionButton} onPress={refetch}>
-            <Text style={styles.actionButtonText}>Try again</Text>
-          </Pressable>
-        </View>
+        <ErrorState
+          title="Unable to load products."
+          message={error}
+          actionLabel="Try again"
+          onAction={refetch}
+        />
       ) : products.length === 0 ? (
         /* Initial Empty State */
-        <View style={styles.stateCard}>
-          <View style={styles.stateIcon}>
-            <Ionicons name="cube-outline" size={28} color={colors.textSecondary} />
-          </View>
-          <Text style={styles.stateTitle}>No products available.</Text>
-          <Text style={styles.stateSubtitle}>Please check back later for Marketplace products.</Text>
-        </View>
+        <EmptyState
+          icon="cube-outline"
+          title="No products available."
+          subtitle="Please check back later for Marketplace products."
+        />
       ) : filteredProducts.length === 0 ? (
         /* Search Empty State */
-        <View style={styles.stateCard}>
-          <View style={styles.stateIcon}>
-            <Ionicons name="search-outline" size={28} color={colors.textSecondary} />
-          </View>
-          <Text style={styles.stateTitle}>No products found.</Text>
-          <Text style={styles.stateSubtitle}>Try another search.</Text>
-          <Pressable style={styles.secondaryButton} onPress={() => setSearchQuery('')}>
-            <Text style={styles.secondaryButtonText}>Clear search</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          icon="search-outline"
+          title="No products found."
+          subtitle="Try another search."
+          actionLabel="Clear search"
+          onAction={() => setSearchQuery('')}
+        />
       ) : (
         /* Product List */
         <View style={styles.productListSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {searchQuery.trim() ? `Search Results (${filteredProducts.length})` : 'All Products'}
-            </Text>
-          </View>
+          <SectionHeader
+            title={searchQuery.trim() ? 'Search Results' : 'All Products'}
+            badge={filteredProducts.length}
+          />
 
           <View style={styles.cardList}>
             {filteredProducts.map((product) => (
@@ -231,88 +240,10 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: spacing.xs,
   },
-  sectionHeader: {
-    marginBottom: spacing.xs,
-  },
-  sectionTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.sectionTitle,
-    fontWeight: '800',
-    lineHeight: 24,
-  },
   productListSection: {
     gap: spacing.sm,
   },
   cardList: {
     // Keep cards stacked vertically with consistent spacing
-  },
-  stateCard: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-    padding: spacing.xl,
-    alignItems: 'center',
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
-  },
-  stateIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceSoft,
-    marginBottom: spacing.md,
-  },
-  errorIcon: {
-    backgroundColor: colors.dangerSoft,
-  },
-  spinner: {
-    marginBottom: spacing.md,
-  },
-  stateTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.cardTitle,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  stateSubtitle: {
-    color: colors.textSecondary,
-    fontSize: typography.secondary,
-    lineHeight: 19,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  actionButton: {
-    minHeight: 42,
-    borderRadius: radius.button,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.lg,
-  },
-  actionButtonText: {
-    color: colors.white,
-    fontSize: typography.label,
-    fontWeight: '800',
-  },
-  secondaryButton: {
-    minHeight: 38,
-    borderRadius: radius.button,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.md,
-  },
-  secondaryButtonText: {
-    color: colors.primary,
-    fontSize: typography.secondary,
-    fontWeight: '700',
   },
 });

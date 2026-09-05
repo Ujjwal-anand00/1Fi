@@ -2,6 +2,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { PriceSummary } from '../components/PriceSummary';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
 import { spacing } from '../theme/spacing';
@@ -195,50 +196,16 @@ export function OrderDetailsScreen({
       </View>
 
       {/* EMI & Payment Breakdown */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="receipt-outline" size={20} color={colors.primary} />
-          <Text style={styles.cardTitle}>EMI &amp; Payment Breakdown</Text>
-        </View>
-
-        <View style={styles.emiHighlightRow}>
-          <View style={styles.emiHighlightLeft}>
-            <Ionicons name="calendar" size={16} color={colors.primary} />
-            <Text style={styles.emiPlanName}>{order.emiPlan}</Text>
-          </View>
-          <Text style={styles.emiMonthlyAmount}>
-            {formatINR(order.monthlyEmi)} <Text style={styles.emiPerMonth}>/ month</Text>
-          </Text>
-        </View>
-
-        <View style={styles.breakdownWrap}>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Product Price</Text>
-            <Text style={styles.breakdownValue}>{formatINR(order.productPrice || order.productAmount)}</Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Interest</Text>
-            <Text style={[styles.breakdownValue, order.interestAmount === 0 && styles.noCostGreen]}>
-              {order.interestAmount === 0 ? '₹0 (No-Cost EMI)' : formatINR(order.interestAmount)}
-            </Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Processing Fee</Text>
-            <Text style={styles.breakdownValue}>
-              {order.processingFee > 0 ? formatINR(order.processingFee) : 'FREE'}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Payable</Text>
-            <Text style={styles.totalValue}>{formatINR(order.totalPayable)}</Text>
-          </View>
-        </View>
-      </View>
+      <PriceSummary
+        title="EMI & Payment Breakdown"
+        productPrice={order.productPrice || order.productAmount}
+        interestAmount={order.interestAmount}
+        processingFee={order.processingFee}
+        totalPayable={order.totalPayable}
+        isNoCost={order.interestAmount === 0}
+        monthlyEmi={order.monthlyEmi}
+        months={order.emiMonths}
+      />
 
       {/* Delivery Address Card */}
       <View style={styles.card}>
