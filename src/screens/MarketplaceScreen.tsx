@@ -10,16 +10,29 @@ import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import type { Product } from '../types/marketplace';
+import type { EmiPlan, Product, ProductVariant } from '../types/marketplace';
+import type { Order } from '../types/order';
+import { CheckoutScreen } from './CheckoutScreen';
+import { OrderConfirmationScreen } from './OrderConfirmationScreen';
 import { ProductDetailsScreen } from './ProductDetailsScreen';
+
+type CheckoutData = {
+  product: Product;
+  selectedVariant: ProductVariant;
+  selectedEmiPlan: EmiPlan;
+};
 
 export function MarketplaceScreen() {
   const insets = useSafeAreaInsets();
   const { products, loading, error, refetch } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  // Floating bottom navigation is 74px + safe area insets + clearance buffer
+  // Navigation flow state
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+
+  // Floating bottom navigation clearance
   const bottomClearance = 74 + Math.max(insets.bottom, spacing.md) + spacing.lg;
 
   // Case-insensitive name filter
@@ -31,16 +44,45 @@ export function MarketplaceScreen() {
     return products.filter((product) => product.name.toLowerCase().includes(query));
   }, [products, searchQuery]);
 
-  // Navigate to Product Details placeholder when a product is selected
+  // 1. Order Confirmation Screen
+  if (confirmedOrder) {
+    return (
+      <OrderConfirmationScreen
+        order={confirmedOrder}
+        onContinueShopping={() => {
+          setConfirmedOrder(null);
+          setCheckoutData(null);
+          setSelectedProductId(null);
+          setSearchQuery('');
+        }}
+      />
+    );
+  }
+
+  // 2. Checkout Screen
+  if (checkoutData) {
+    return (
+      <CheckoutScreen
+        product={checkoutData.product}
+        selectedVariant={checkoutData.selectedVariant}
+        selectedEmiPlan={checkoutData.selectedEmiPlan}
+        onBack={() => setCheckoutData(null)}
+        onOrderPlaced={(order) => {
+          setConfirmedOrder(order);
+          setCheckoutData(null);
+        }}
+      />
+    );
+  }
+
+  // 3. Product Details Screen
   if (selectedProductId) {
     return (
-      <View style={styles.wrapper}>
-        <ProductDetailsScreen
-          productId={selectedProductId}
-          onBack={() => setSelectedProductId(null)}
-        />
-        <View style={{ height: bottomClearance }} />
-      </View>
+      <ProductDetailsScreen
+        productId={selectedProductId}
+        onBack={() => setSelectedProductId(null)}
+        onProceedToCheckout={(data) => setCheckoutData(data)}
+      />
     );
   }
 
