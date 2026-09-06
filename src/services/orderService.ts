@@ -20,7 +20,7 @@ const seedInitialOrder: Order = {
     label: 'Laptop',
     backgroundColor: '#F5F5F7',
   },
-  variant: '16 GB RAM • 512 GB SSD',
+  variant: '8 GB RAM • 512 GB SSD',
   quantity: 1,
   productPrice: 64999,
   productAmount: 64999,

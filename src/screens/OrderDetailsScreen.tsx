@@ -2,6 +2,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { OrderSummaryCard } from '../components/OrderSummaryCard';
 import { PriceSummary } from '../components/PriceSummary';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
@@ -167,33 +168,16 @@ export function OrderDetailsScreen({
       </View>
 
       {/* Product Summary Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="bag-check-outline" size={20} color={colors.primary} />
-          <Text style={styles.cardTitle}>Purchased Item</Text>
-        </View>
-
-        <View style={styles.productRow}>
-          <View style={[styles.imageFrame, { backgroundColor: order.productImage.backgroundColor ?? '#F8F8FA' }]}>
-            {imageSource ? (
-              <Image source={imageSource} style={styles.productThumb} resizeMode="contain" />
-            ) : (
-              <Ionicons name="cube-outline" size={28} color={colors.primary} />
-            )}
-          </View>
-
-          <View style={styles.productInfo}>
-            <Text style={styles.productName} numberOfLines={2}>
-              {order.productName}
-            </Text>
-            <Text style={styles.variantBadge}>{order.variant}</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.quantityText}>Qty: {order.quantity}</Text>
-              <Text style={styles.productPrice}>{formatINR(order.productPrice || order.productAmount)}</Text>
-            </View>
-          </View>
-        </View>
-      </View>
+      <OrderSummaryCard
+        title="Purchased Item"
+        productName={order.productName}
+        productImage={order.productImage}
+        variantLabel={order.variant}
+        price={order.productPrice || order.productAmount}
+        quantity={order.quantity}
+        emiPlanTitle={order.emiPlan}
+        monthlyEmi={order.monthlyEmi}
+      />
 
       {/* EMI & Payment Breakdown */}
       <PriceSummary

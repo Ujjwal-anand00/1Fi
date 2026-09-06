@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -283,12 +283,10 @@ export function ProductDetailsScreen({
       {/* EMI Plans Section */}
       {dynamicEmiPlans.length > 0 ? (
         <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Available EMI Plans</Text>
-            <Text style={styles.sectionSubtitle}>
-              Select a flexible plan powered by your 1Fi credit limit
-            </Text>
-          </View>
+          <SectionHeader
+            title="Available EMI Plans"
+            subtitle="Select a flexible plan powered by your 1Fi credit limit"
+          />
 
           <View style={styles.emiList}>
             {dynamicEmiPlans.map((plan) => (
@@ -526,19 +524,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  sectionHeader: {
-    gap: 2,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.cardTitle,
-    fontWeight: '800',
-  },
-  sectionSubtitle: {
-    color: colors.textSecondary,
-    fontSize: typography.secondary,
-  },
   emiList: {
     gap: spacing.xs,
   },
@@ -626,41 +611,5 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     fontWeight: '800',
     letterSpacing: 0.3,
-  },
-  stateCard: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.md,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
-  },
-  spinner: {
-    marginBottom: spacing.xs,
-  },
-  stateTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.cardTitle,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  actionButton: {
-    minHeight: 42,
-    borderRadius: radius.button,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonText: {
-    color: colors.white,
-    fontSize: typography.label,
-    fontWeight: '800',
   },
 });

@@ -102,7 +102,7 @@ function initSeedPlans() {
       label: 'Laptop',
       backgroundColor: '#F5F5F7',
     },
-    variant: '16 GB RAM • 512 GB SSD',
+    variant: '8 GB RAM • 512 GB SSD',
     purchasePrice: 64999,
     processingFee: 699,
     interestAmount: 4225,

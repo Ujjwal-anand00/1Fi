@@ -2,6 +2,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { OrderSummaryCard } from '../components/OrderSummaryCard';
 import { PriceSummary } from '../components/PriceSummary';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
@@ -58,40 +59,16 @@ export function OrderConfirmationScreen({
       </View>
 
       {/* 2. Item Summary Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="bag-check-outline" size={20} color={colors.primary} />
-          <Text style={styles.cardTitle}>Item Details</Text>
-        </View>
-
-        <View style={styles.productRow}>
-          <View style={[styles.imageFrame, { backgroundColor: order.productImage.backgroundColor ?? '#F8F8FA' }]}>
-            {imageSource ? (
-              <Image source={imageSource} style={styles.productThumb} resizeMode="contain" />
-            ) : (
-              <Ionicons name="cube-outline" size={28} color={colors.primary} />
-            )}
-          </View>
-
-          <View style={styles.productInfo}>
-            <Text style={styles.productName} numberOfLines={2}>
-              {order.productName}
-            </Text>
-            <Text style={styles.variantBadge}>{order.variant}</Text>
-            <Text style={styles.productPrice}>{formatINR(order.productPrice || order.productAmount)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.emiHighlightRow}>
-          <View style={styles.emiHighlightLeft}>
-            <Ionicons name="calendar" size={16} color={colors.primary} />
-            <Text style={styles.emiPlanName}>{order.emiPlan}</Text>
-          </View>
-          <Text style={styles.emiMonthlyAmount}>
-            {formatINR(order.monthlyEmi)} <Text style={styles.emiPerMonth}>/ month</Text>
-          </Text>
-        </View>
-      </View>
+      <OrderSummaryCard
+        title="Item Details"
+        productName={order.productName}
+        productImage={order.productImage}
+        variantLabel={order.variant}
+        price={order.productPrice || order.productAmount}
+        quantity={order.quantity || 1}
+        emiPlanTitle={order.emiPlan}
+        monthlyEmi={order.monthlyEmi}
+      />
 
       {/* 3. Delivery & Payment Details Card */}
       <View style={styles.card}>

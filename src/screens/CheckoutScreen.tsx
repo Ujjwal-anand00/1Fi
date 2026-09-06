@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { DeliveryAddressCard } from '../components/DeliveryAddressCard';
 import { EmiTermsSection } from '../components/EmiTermsSection';
+import { OrderSummaryCard } from '../components/OrderSummaryCard';
 import { PaymentMethodSelector } from '../components/PaymentMethodSelector';
 import { PriceSummary } from '../components/PriceSummary';
 import { createOrder, defaultDeliveryAddress } from '../services/orderService';
@@ -109,49 +110,16 @@ export function CheckoutScreen({
         <Text style={styles.headerTitle}>Checkout</Text>
         <View style={{ width: 50 }} />
       </View>
-
       {/* 1. Order Summary Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="bag-check-outline" size={20} color={colors.primary} />
-          <Text style={styles.cardTitle}>Order Summary</Text>
-        </View>
-
-        <View style={styles.productRow}>
-          <View style={[styles.imageFrame, { backgroundColor: product.image.backgroundColor ?? '#F8F8FA' }]}>
-            {imageSource ? (
-              <Image source={imageSource} style={styles.productThumb} resizeMode="contain" />
-            ) : (
-              <Ionicons name="cube-outline" size={28} color={colors.primary} />
-            )}
-          </View>
-
-          <View style={styles.productInfo}>
-            <Text style={styles.productName} numberOfLines={2}>
-              {product.name}
-            </Text>
-            <Text style={styles.variantBadge}>
-              {selectedVariant.label}
-              {selectedVariant.value ? ` • ${selectedVariant.value}` : ''}
-            </Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.quantityLabel}>Qty: 1</Text>
-              <Text style={styles.productPrice}>{formatINR(selectedVariant.price)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Selected EMI Highlight */}
-        <View style={styles.emiHighlightRow}>
-          <View style={styles.emiHighlightLeft}>
-            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-            <Text style={styles.emiPlanName}>{emiCalc.months} Months {emiCalc.isNoCost ? 'No Cost ' : ''}EMI</Text>
-          </View>
-          <Text style={styles.emiMonthlyAmount}>
-            {formatINR(emiCalc.monthlyEmi)} <Text style={styles.emiPerMonth}>/ mo</Text>
-          </Text>
-        </View>
-      </View>
+      <OrderSummaryCard
+        productName={product.name}
+        productImage={product.image}
+        variantLabel={`${selectedVariant.label}${selectedVariant.value ? ` • ${selectedVariant.value}` : ''}`}
+        price={selectedVariant.price}
+        quantity={1}
+        emiPlanTitle={`${emiCalc.months} Months ${emiCalc.isNoCost ? 'No Cost ' : ''}EMI`}
+        monthlyEmi={emiCalc.monthlyEmi}
+      />
 
       {/* 2. Price Summary Card */}
       <PriceSummary
