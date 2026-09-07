@@ -1,7 +1,10 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
+import type { RootTabParamList } from '../../App';
 import { OrderSummaryCard } from '../components/OrderSummaryCard';
 import { PriceSummary } from '../components/PriceSummary';
 import { colors } from '../theme/colors';
@@ -22,6 +25,7 @@ export function OrderConfirmationScreen({
   onContinueShopping,
   onViewOrder,
 }: OrderConfirmationScreenProps) {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const insets = useSafeAreaInsets();
 
   // Clearance for floating bottom navigation
@@ -112,9 +116,21 @@ export function OrderConfirmationScreen({
           style={styles.primaryBtn}
           onPress={onViewOrder}
           accessibilityRole="button"
-          accessibilityLabel="View Order"
+          accessibilityLabel="View Order Details"
         >
-          <Text style={styles.primaryBtnText}>View Order →</Text>
+          <Text style={styles.primaryBtnText}>View Order Details →</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.emiDuesBtn}
+          onPress={() => {
+            navigation.navigate('EMI Dues');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Track in EMI Dues"
+        >
+          <Ionicons name="card-outline" size={18} color={colors.primary} />
+          <Text style={styles.emiDuesBtnText}>Track in EMI Dues</Text>
         </Pressable>
 
         <Pressable
@@ -369,6 +385,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  emiDuesBtn: {
+    minHeight: 48,
+    borderRadius: radius.button,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1.5,
+    borderColor: '#DDD6FE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  emiDuesBtnText: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: '800',
   },
   secondaryBtn: {
     minHeight: 48,

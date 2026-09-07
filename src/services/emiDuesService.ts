@@ -1,5 +1,6 @@
 import type { ActiveEmiPlan, EmiOverviewSummary, EmiPaymentReceipt, EmiPaymentResult, Installment, InstallmentStatus, UpcomingPayment } from '../types/emi';
 import type { Order, PaymentMethod } from '../types/order';
+import { seedInitialOrder } from '../data/orderSeedData';
 
 // In-memory active EMI plans store
 let activeEmiPlansStore: ActiveEmiPlan[] = [];
@@ -43,20 +44,43 @@ function generateDueDates(startDate: Date, totalMonths: number): string[] {
   return dates;
 }
 
-// Seed initial active EMI plan matching the user's specification
+// Parse human date strings like "5 Oct 2026" deterministically
+export function parseDueDate(dateStr: string): number {
+  const parsed = Date.parse(dateStr);
+  if (!isNaN(parsed)) return parsed;
+
+  const parts = dateStr.trim().split(/\s+/);
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const monthsMap: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    };
+    const monthKey = parts[1].toLowerCase().slice(0, 3);
+    const year = parseInt(parts[2], 10);
+    if (!isNaN(day) && monthsMap[monthKey] !== undefined && !isNaN(year)) {
+      return new Date(year, monthsMap[monthKey], day).getTime();
+    }
+  }
+  return 0;
+}
+
+// Seed initial active EMI plan derived directly from the single source of truth seedInitialOrder
 function initSeedPlans() {
   if (activeEmiPlansStore.length > 0) return;
 
+  const totalMonths = seedInitialOrder.emiMonths || 12;
   const startDate = new Date('2026-07-05');
-  const dueDates = generateDueDates(startDate, 12);
-  const monthlyEmi = 5768.67;
-  const totalPayable = 69224; // 12 * 5768.67 approx
+  const dueDates = generateDueDates(startDate, totalMonths);
+  const monthlyEmi = seedInitialOrder.monthlyEmi; // 5768.67
+  const totalPayable = seedInitialOrder.totalPayable; // 69923
   const paidCount = 2;
-  const paidAmount = Math.round(monthlyEmi * paidCount * 100) / 100;
-  const remainingAmount = Math.round((totalPayable - paidAmount) * 100) / 100;
+  const amountPaid = Math.round(monthlyEmi * paidCount * 100) / 100; // 11537.34
+  // Mathematical reconciliation: remaining amount = total payable - amount already paid
+  const remainingAmount = Math.max(0, Math.round((totalPayable - amountPaid) * 100) / 100); // 58385.66
 
   const schedule: Installment[] = [];
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 1; i <= totalMonths; i++) {
     if (i <= paidCount) {
       schedule.push({
         installmentNumber: i,
@@ -83,37 +107,24 @@ function initSeedPlans() {
     }
   }
 
-  let laptopAsset: any = undefined;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    laptopAsset = require('../../assets/products/laptop.jpg');
-  } catch {
-    laptopAsset = undefined;
-  }
-
   const initialPlan: ActiveEmiPlan = {
     planId: 'emi-plan-orbitbook-1',
-    orderId: '1FI-ORD-108422',
-    productId: 'orbitbook-air-14',
-    productName: 'OrbitBook Air 14 Laptop',
-    productImage: {
-      type: 'asset',
-      source: laptopAsset,
-      label: 'Laptop',
-      backgroundColor: '#F5F5F7',
-    },
-    variant: '8 GB RAM • 512 GB SSD',
-    purchasePrice: 64999,
-    processingFee: 699,
-    interestAmount: 4225,
-    totalPayable: 69923,
-    monthlyEmi: 5768.67,
-    totalInstallments: 12,
-    paidInstallments: 2,
-    amountPaid: 11537.34,
-    remainingAmount: 57686.7,
+    orderId: seedInitialOrder.orderId,
+    productId: seedInitialOrder.productId,
+    productName: seedInitialOrder.productName,
+    productImage: seedInitialOrder.productImage,
+    variant: seedInitialOrder.variant,
+    purchasePrice: seedInitialOrder.productPrice || seedInitialOrder.productAmount,
+    processingFee: seedInitialOrder.processingFee,
+    interestAmount: seedInitialOrder.interestAmount,
+    totalPayable,
+    monthlyEmi,
+    totalInstallments: totalMonths,
+    paidInstallments: paidCount,
+    amountPaid,
+    remainingAmount,
     nextDueDate: '5 Oct 2026',
-    nextDueAmount: 5768.67,
+    nextDueAmount: monthlyEmi,
     nextDueStatus: 'Due Soon',
     startDate: '5 Aug 2026',
     endDate: '5 Jul 2027',
@@ -127,6 +138,12 @@ initSeedPlans();
 
 // Create and register a new active EMI plan directly from a completed Marketplace order
 export function registerEmiPlanFromOrder(order: Order): ActiveEmiPlan {
+  // Remove initial mock seed plan when the user places their first real order
+  const seedIndex = activeEmiPlansStore.findIndex((p) => p.orderId === seedInitialOrder.orderId);
+  if (seedIndex !== -1) {
+    activeEmiPlansStore.splice(seedIndex, 1);
+  }
+
   const existing = activeEmiPlansStore.find((p) => p.orderId === order.orderId);
   if (existing) return existing;
 
@@ -182,8 +199,13 @@ export async function getEmiOverview(): Promise<EmiOverviewSummary> {
   const totalOriginalAmount = activeEmiPlansStore.reduce((acc, p) => acc + p.totalPayable, 0);
   const totalAmountPaid = activeEmiPlansStore.reduce((acc, p) => acc + p.amountPaid, 0);
 
-  // Find next upcoming due plan
-  const nextPlan = plans[0];
+  // Find plan with the earliest next due date among active plans
+  let nextPlan: ActiveEmiPlan | null = null;
+  if (plans.length > 0) {
+    const sorted = [...plans].sort((a, b) => parseDueDate(a.nextDueDate) - parseDueDate(b.nextDueDate));
+    nextPlan = sorted[0];
+  }
+
   const nextEmiDueAmount = nextPlan ? nextPlan.nextDueAmount : 0;
   const nextDueDate = nextPlan ? nextPlan.nextDueDate : 'None';
 
@@ -241,11 +263,19 @@ export async function getUpcomingPayments(): Promise<UpcomingPayment[]> {
     }
   }
 
-  // Sort: Due Soon first, then Upcoming
+  // Sort strictly chronologically by actual due date ascending.
+  // Status ("Due Soon" / "Upcoming") is a display badge only and does NOT alter chronological order.
+  // If two payments have the same due date, use deterministic secondary ordering (planId, then installmentNumber).
   return payments.sort((a, b) => {
-    if (a.status === 'Due Soon' && b.status !== 'Due Soon') return -1;
-    if (b.status === 'Due Soon' && a.status !== 'Due Soon') return 1;
-    return 0;
+    const dateA = parseDueDate(a.dueDate);
+    const dateB = parseDueDate(b.dueDate);
+    if (dateA !== dateB) {
+      return dateA - dateB;
+    }
+    if (a.planId !== b.planId) {
+      return a.planId.localeCompare(b.planId);
+    }
+    return a.installmentNumber - b.installmentNumber;
   });
 }
 
@@ -295,10 +325,11 @@ export async function payEmiInstallment(
 
   const newlyPaidInstallments = updatedSchedule.filter((i) => i.status === 'Paid').length;
   const newAmountPaid = Math.round((plan.amountPaid + targetInstallment.amount) * 100) / 100;
+  // Mathematical reconciliation: remaining amount = total payable - amount already paid
   const newRemainingAmount =
     newlyPaidInstallments >= plan.totalInstallments
       ? 0
-      : Math.max(0, Math.round((plan.remainingAmount - targetInstallment.amount) * 100) / 100);
+      : Math.max(0, Math.round((plan.totalPayable - newAmountPaid) * 100) / 100);
 
   // Find next unpaid installment
   const nextUnpaid = updatedSchedule.find((i) => i.status !== 'Paid');
@@ -306,16 +337,22 @@ export async function payEmiInstallment(
   let nextDueAmount = 0;
   let nextDueStatus: InstallmentStatus = 'Paid';
 
-  if (nextUnpaid) {
-    nextDueDate = nextUnpaid.dueDate;
-    nextDueAmount = nextUnpaid.amount;
-    nextDueStatus = 'Due Soon';
-    nextUnpaid.status = 'Due Soon';
-  }
+  const finalSchedule = updatedSchedule.map((inst) => {
+    if (nextUnpaid && inst.installmentNumber === nextUnpaid.installmentNumber) {
+      nextDueDate = inst.dueDate;
+      nextDueAmount = inst.amount;
+      nextDueStatus = 'Due Soon';
+      return {
+        ...inst,
+        status: 'Due Soon' as const,
+      };
+    }
+    return inst;
+  });
 
   const updatedPlan: ActiveEmiPlan = {
     ...plan,
-    schedule: updatedSchedule,
+    schedule: finalSchedule,
     paidInstallments: newlyPaidInstallments,
     amountPaid: newAmountPaid,
     remainingAmount: newRemainingAmount,

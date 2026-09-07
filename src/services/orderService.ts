@@ -1,65 +1,11 @@
 import type { DeliveryAddress, Order } from '../types/order';
+import { defaultDeliveryAddress, seedInitialOrder } from '../data/orderSeedData';
 import { registerEmiPlanFromOrder } from './emiDuesService';
 
-let laptopAsset: any = undefined;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  laptopAsset = require('../../assets/products/laptop.jpg');
-} catch {
-  laptopAsset = undefined;
-}
-
-// Default initial seeded order for OrbitBook Air matching EMI Dues dashboard
-const seedInitialOrder: Order = {
-  orderId: '1FI-ORD-108422',
-  productId: 'orbitbook-air-14',
-  productName: 'OrbitBook Air 14 Laptop',
-  productImage: {
-    type: 'asset',
-    source: laptopAsset,
-    label: 'Laptop',
-    backgroundColor: '#F5F5F7',
-  },
-  variant: '8 GB RAM • 512 GB SSD',
-  quantity: 1,
-  productPrice: 64999,
-  productAmount: 64999,
-  emiPlan: '12 Months EMI',
-  emiMonths: 12,
-  monthlyEmi: 5768.67,
-  interestAmount: 4225,
-  processingFee: 699,
-  totalPayable: 69923,
-  deliveryAddress: {
-    fullName: 'Rahul Sharma',
-    mobileNumber: '9876543210',
-    addressLine1: 'Flat 402, Lotus Heights',
-    addressLine2: '12th Main, Indiranagar',
-    addressLine: 'Flat 402, Lotus Heights, 12th Main, Indiranagar',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    pinCode: '560038',
-  },
-  paymentMethod: 'upi',
-  orderStatus: 'Confirmed',
-  createdAt: '2026-07-05T10:30:00.000Z',
-  expectedDelivery: '9 Jul 2026',
-};
+export { defaultDeliveryAddress, seedInitialOrder };
 
 // In-memory persistent order storage
 const ordersStore: Order[] = [seedInitialOrder];
-
-// Default customer delivery address
-export const defaultDeliveryAddress: DeliveryAddress = {
-  fullName: 'Rahul Sharma',
-  mobileNumber: '9876543210',
-  addressLine1: 'Flat 402, Lotus Heights',
-  addressLine2: '12th Main, Indiranagar',
-  addressLine: 'Flat 402, Lotus Heights, 12th Main, Indiranagar',
-  city: 'Bengaluru',
-  state: 'Karnataka',
-  pinCode: '560038',
-};
 
 // Generate realistic unique 1Fi Order ID
 export function generateOrderId(): string {
@@ -95,6 +41,12 @@ export async function createOrder(
     createdAt: new Date().toISOString(),
     expectedDelivery: getExpectedDeliveryDate(),
   };
+
+  // Replace initial mock seed order when the user places their first real order
+  const seedIndex = ordersStore.findIndex((o) => o.orderId === seedInitialOrder.orderId);
+  if (seedIndex !== -1) {
+    ordersStore.splice(seedIndex, 1);
+  }
 
   ordersStore.unshift(newOrder);
 

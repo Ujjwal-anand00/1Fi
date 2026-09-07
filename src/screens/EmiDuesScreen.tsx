@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { RootTabParamList } from '../../App';
 import { ActiveEmiCard } from '../components/ActiveEmiCard';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { LoadingState } from '../components/LoadingState';
 import { SectionHeader } from '../components/SectionHeader';
 import { UpcomingPaymentCard } from '../components/UpcomingPaymentCard';
@@ -34,6 +35,7 @@ export function EmiDuesScreen() {
   const [overview, setOverview] = useState<EmiOverviewSummary | null>(null);
   const [activePlans, setActivePlans] = useState<ActiveEmiPlan[]>([]);
   const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   // Navigation state within EMI Dues
   const [selectedPlanForDetails, setSelectedPlanForDetails] = useState<ActiveEmiPlan | null>(null);
@@ -46,6 +48,7 @@ export function EmiDuesScreen() {
 
   const loadData = useCallback(async () => {
     try {
+      setError(null);
       const [overviewData, plansData, paymentsData] = await Promise.all([
         getEmiOverview(),
         getActiveEmiPlans(),
@@ -61,7 +64,7 @@ export function EmiDuesScreen() {
         if (updated) setSelectedPlanForDetails(updated);
       }
     } catch {
-      // Ignore background load errors
+      setError('Unable to load EMI dues. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -185,6 +188,13 @@ export function EmiDuesScreen() {
           {/* Loading State during initial retrieval */}
           {loading ? (
             <LoadingState message="Loading your EMI dues..." />
+          ) : error && activePlans.length === 0 ? (
+            <ErrorState
+              title="Unable to load EMI dues"
+              message={error}
+              actionLabel="Try again"
+              onAction={loadData}
+            />
           ) : (
             <>
               {/* 1. EMI Dues Overview Card */}

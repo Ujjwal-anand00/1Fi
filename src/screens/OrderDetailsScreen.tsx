@@ -1,7 +1,10 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
+import type { RootTabParamList } from '../../App';
 import { OrderSummaryCard } from '../components/OrderSummaryCard';
 import { PriceSummary } from '../components/PriceSummary';
 import { colors } from '../theme/colors';
@@ -30,6 +33,7 @@ export function OrderDetailsScreen({
   onBack,
   onContinueShopping,
 }: OrderDetailsScreenProps) {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const insets = useSafeAreaInsets();
   const bottomClearance = 74 + Math.max(insets.bottom, spacing.md) + spacing.lg;
 
@@ -236,6 +240,18 @@ export function OrderDetailsScreen({
 
       {/* Action CTA */}
       <View style={styles.ctaCard}>
+        <Pressable
+          style={styles.emiDuesBtn}
+          onPress={() => {
+            navigation.navigate('EMI Dues');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Track in EMI Dues"
+        >
+          <Ionicons name="card-outline" size={18} color={colors.primary} />
+          <Text style={styles.emiDuesBtnText}>Track in EMI Dues →</Text>
+        </Pressable>
+
         <Pressable
           style={styles.continueBtn}
           onPress={onContinueShopping}
@@ -590,27 +606,41 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     backgroundColor: colors.surface,
     padding: spacing.lg,
+    gap: spacing.md,
     shadowColor: colors.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
+  emiDuesBtn: {
+    minHeight: 48,
+    borderRadius: radius.button,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1.5,
+    borderColor: '#DDD6FE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  emiDuesBtnText: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: '800',
+  },
   continueBtn: {
     minHeight: 50,
     borderRadius: radius.button,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
   continueBtnText: {
-    color: colors.white,
-    fontSize: 16,
+    color: colors.primary,
+    fontSize: 15,
     fontWeight: '800',
   },
 });

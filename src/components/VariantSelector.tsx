@@ -38,7 +38,11 @@ export function VariantSelector({
           return (
             <Pressable
               key={variant.id}
-              onPress={() => onSelectVariant(variant)}
+              onPress={() => {
+                if (isAvailable) {
+                  onSelectVariant(variant);
+                }
+              }}
               style={({ pressed }) => [
                 styles.variantCard,
                 isSelected && styles.variantCardSelected,

@@ -112,6 +112,7 @@ export function ProductDetailsScreen({
         ...rawPlan,
         monthlyAmount: calc.monthlyEmi,
         totalAmount: calc.principal + calc.interestAmount,
+        totalPayable: calc.totalPayable,
       };
     });
   }, [product?.emiPlans, currentPrice]);
@@ -144,7 +145,10 @@ export function ProductDetailsScreen({
     if (!isVariantAvailable || !activeVariant || !selectedPlan || !product) return;
     if (onProceedToCheckout) {
       onProceedToCheckout({
-        product,
+        product: {
+          ...product,
+          price: currentPrice,
+        },
         selectedVariant: {
           ...activeVariant,
           price: currentPrice,

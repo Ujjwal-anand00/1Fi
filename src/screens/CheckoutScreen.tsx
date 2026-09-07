@@ -74,8 +74,14 @@ export function CheckoutScreen({
         productName: product.name,
         productImage: product.image,
         variant: `${selectedVariant.label}${selectedVariant.value ? ` • ${selectedVariant.value}` : ''}`,
-        color: selectedVariant.type.toLowerCase().includes('color') ? selectedVariant.label : undefined,
-        storage: selectedVariant.type.toLowerCase().includes('storage') ? selectedVariant.label : undefined,
+        color:
+          selectedVariant.color ??
+          (selectedVariant.type.toLowerCase().includes('color') ? selectedVariant.label : undefined),
+        storage: selectedVariant.type.toLowerCase().includes('storage')
+          ? selectedVariant.label
+          : selectedVariant.value?.includes('SSD') || selectedVariant.value?.includes('GB')
+            ? selectedVariant.value
+            : undefined,
         quantity: 1,
         productPrice: emiCalc.principal,
         productAmount: emiCalc.principal,
