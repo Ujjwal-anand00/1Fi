@@ -244,6 +244,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   cardList: {
-    // Keep cards stacked vertically with consistent spacing
+    gap: spacing.md,
   },
 });

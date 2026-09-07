@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
@@ -15,11 +15,7 @@ type ShopTabsProps = {
 export function ShopTabs({ tabs, activeTab, onChange }: ShopTabsProps) {
   return (
     <View style={styles.shell}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.container}
-      >
+      <View style={styles.container}>
         {tabs.map((tab) => {
           const isActive = tab.key === activeTab;
 
@@ -28,21 +24,30 @@ export function ShopTabs({ tabs, activeTab, onChange }: ShopTabsProps) {
               key={tab.key}
               onPress={() => onChange(tab.key)}
               style={[styles.tab, isActive && styles.activeTab]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={tab.label}
             >
-              <Text style={[styles.label, isActive && styles.activeLabel]} numberOfLines={1}>
+              <Text
+                style={[styles.label, isActive && styles.activeLabel]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
                 {tab.label}
               </Text>
               <View style={[styles.indicator, isActive && styles.activeIndicator]} />
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   shell: {
+    width: '100%',
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
@@ -50,15 +55,20 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
     gap: spacing.xs,
   },
   tab: {
-    minWidth: 118,
-    minHeight: 50,
+    flex: 1,
+    minWidth: 0,
+    minHeight: 48,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
   },
   activeTab: {
     backgroundColor: colors.surface,
@@ -72,12 +82,13 @@ const styles = StyleSheet.create({
     color: colors.inactive,
     fontSize: typography.label,
     fontWeight: '700',
+    textAlign: 'center',
   },
   activeLabel: {
     color: colors.primary,
   },
   indicator: {
-    width: 28,
+    width: 24,
     height: 3,
     borderRadius: radius.pill,
     marginTop: spacing.xs,
@@ -87,3 +98,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
 });
+

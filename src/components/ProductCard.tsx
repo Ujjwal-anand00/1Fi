@@ -60,7 +60,7 @@ export function ProductCard({ product, onPress }: ProductCardProps) {
       accessibilityRole="button"
       accessibilityLabel={`${product.name}, ${formatINR(product.price)}`}
     >
-      {/* Product visual container */}
+      {/* Product visual container - LEFT */}
       <View
         style={[
           styles.imageContainer,
@@ -76,33 +76,40 @@ export function ProductCard({ product, onPress }: ProductCardProps) {
           />
         ) : (
           <View style={styles.placeholderWrap}>
-            <Ionicons name={iconName} size={36} color={colors.primary} />
+            <Ionicons name={iconName} size={32} color={colors.primary} />
           </View>
         )}
-
-        {/* Category tag */}
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{product.category}</Text>
-        </View>
       </View>
 
-      {/* Product info section with consistent vertical rhythm */}
+      {/* Product info section - RIGHT */}
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
-          {product.name}
-        </Text>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>{formatINR(product.price)}</Text>
-          <Ionicons name="chevron-forward" size={17} color={colors.textTertiary} />
+        {/* Title row with Category badge */}
+        <View style={styles.titleRow}>
+          <Text style={styles.name} numberOfLines={2}>
+            {product.name}
+          </Text>
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>{product.category}</Text>
+          </View>
         </View>
 
-        {emiHint ? (
-          <View style={styles.emiBadge}>
-            <Ionicons name="flash" size={11} color={colors.primary} />
-            <Text style={styles.emiText}>{emiHint}</Text>
-          </View>
-        ) : null}
+        {/* Price */}
+        <Text style={styles.price}>{formatINR(product.price)}</Text>
+
+        {/* Bottom row: No-cost EMI badge and chevron navigation icon */}
+        <View style={styles.bottomRow}>
+          {emiHint ? (
+            <View style={styles.emiBadge}>
+              <Ionicons name="flash" size={11} color={colors.primary} />
+              <Text style={styles.emiText} numberOfLines={1}>
+                {emiHint}
+              </Text>
+            </View>
+          ) : (
+            <View />
+          )}
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </View>
       </View>
     </Pressable>
   );
@@ -110,12 +117,14 @@ export function ProductCard({ product, onPress }: ProductCardProps) {
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     backgroundColor: colors.surface,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    gap: spacing.md,
     shadowColor: colors.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -127,55 +136,58 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.995 }],
   },
   imageContainer: {
-    width: '100%',
-    height: 124,
+    width: 96,
+    height: 96,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     overflow: 'hidden',
     padding: spacing.xs,
+    flexShrink: 0,
   },
   image: {
-    width: '88%',
-    height: '88%',
+    width: '90%',
+    height: '90%',
   },
   placeholderWrap: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryBadge: {
-    position: 'absolute',
-    top: spacing.xs + 2,
-    right: spacing.xs + 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.04)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  categoryText: {
-    color: colors.textSecondary,
-    fontSize: typography.small,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
   info: {
-    marginTop: spacing.sm,
-    gap: 4,
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
   },
   name: {
+    flex: 1,
+    minWidth: 0,
     color: colors.textPrimary,
     fontSize: typography.cardTitle,
     fontWeight: '800',
     lineHeight: 20,
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
+  categoryBadge: {
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  categoryText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   price: {
     color: colors.textPrimary,
@@ -183,8 +195,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 22,
   },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
   emiBadge: {
-    alignSelf: 'flex-start',
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -192,7 +210,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radius.sm,
-    marginTop: 2,
   },
   emiText: {
     color: colors.primary,
